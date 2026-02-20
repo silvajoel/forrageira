@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1055602958265",
+    "project_id": "forrageira-963b0",
+    "storage_bucket": "forrageira-963b0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1055602958265:android:c7032ae3fe15fb3b3aa068",
+        "android_client_info": {
+          "package_name": "com.example.forrageira"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0FX-HzUKGAjMvVEVL1rCXvcKbsIYvBoo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
