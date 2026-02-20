@@ -28,6 +28,9 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+
+  flutter_native_splash: ^2.4.7
+
   flutter:
     sdk: flutter
 
@@ -48,6 +51,10 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+flutter_native_splash:
+  color: "#FFFFFF"
+  image:                assets/images/logo.png
+  fullscreen: true
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -57,6 +64,9 @@ flutter:
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
+  assets:
+    - assets/images/grass.jpg
+
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:

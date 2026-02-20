@@ -19,88 +19,134 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _login() async {
     setState(() => loading = true);
+
     try {
       await _auth.login(_email.text.trim(), _senha.text.trim());
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Login realizado!")));
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Login realizado!")),
+      );
+
+      Navigator.pushReplacementNamed(context, '/analytics');
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Erro: $e")));
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erro: $e")),
+      );
     }
-    setState(() => loading = false);
+
+    if (mounted) {
+      setState(() => loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.green.shade100,
+      backgroundColor: theme.colorScheme.surfaceVariant,
       body: Center(
-        child: Container(
-          width: 350,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Forrageira",
-                style: TextStyle(
-                    fontSize: 28,
+        child: SingleChildScrollView(
+          child: Container(
+            width: 350,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.agriculture,
+                  size: 50,
+                  color: theme.colorScheme.primary,
+                ),
+
+                const SizedBox(height: 10),
+
+                Text(
+                  "Forrageira",
+                  style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.green),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _email,
-                decoration: const InputDecoration(
-                  labelText: "Email",
-                  prefixIcon: Icon(Icons.email),
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _senha,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: "Senha",
-                  prefixIcon: Icon(Icons.lock),
+
+                const SizedBox(height: 30),
+
+                TextField(
+                  controller: _email,
+                  decoration: const InputDecoration(
+                    labelText: "Email",
+                    prefixIcon: Icon(Icons.email),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: loading ? null : _login,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  minimumSize: const Size(double.infinity, 45),
+
+                const SizedBox(height: 15),
+
+                TextField(
+                  controller: _senha,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: "Senha",
+                    prefixIcon: Icon(Icons.lock),
+                  ),
                 ),
-                child: loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Entrar"),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const ForgotPasswordScreen()),
-                  );
-                },
-                child: const Text("Esqueceu a senha?"),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const RegisterScreen()),
-                  );
-                },
-                child: const Text("Criar conta"),
-              )
-            ],
+
+                const SizedBox(height: 25),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: loading ? null : _login,
+                    child: loading
+                        ? CircularProgressIndicator(
+                      color: theme.colorScheme.onPrimary,
+                    )
+                        : const Text("Entrar"),
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ForgotPasswordScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text("Esqueceu a senha?"),
+                ),
+
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const RegisterScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text("Criar conta"),
+                ),
+              ],
+            ),
           ),
         ),
       ),
