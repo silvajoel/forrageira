@@ -1,10 +1,49 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_text_field.dart';
 import '../widgets/new_analysis_card.dart';
-import '../widgets/analysis_item.dart';
 import '../widgets/bottom_nav_custom.dart';
 
-class SubmitAnalysisScreen extends StatelessWidget {
+class SubmitAnalysisScreen extends StatefulWidget {
   const SubmitAnalysisScreen({Key? key}) : super(key: key);
+
+  @override
+  State<SubmitAnalysisScreen> createState() =>
+      _SubmitAnalysisScreenState();
+}
+
+class _SubmitAnalysisScreenState
+    extends State<SubmitAnalysisScreen> {
+
+  final _formKey = GlobalKey<FormState>();
+
+  final _nameController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _notesController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _locationController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  void _submitForm() {
+    if (_formKey.currentState!.validate()) {
+
+      // Aqui você poderá integrar com Firebase depois
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Forrageira enviada com sucesso!"),
+        ),
+      );
+      Navigator.pushReplacementNamed(context, '/home');
+      _formKey.currentState!.reset();
+      _nameController.clear();
+      _locationController.clear();
+      _notesController.clear();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +55,7 @@ class SubmitAnalysisScreen extends StatelessWidget {
           children: const [
             Icon(Icons.grass),
             SizedBox(width: 8),
-            Text('TESTE TESTE'),
+            Text('Enviar Forrageira'),
           ],
         ),
         actions: const [
@@ -31,31 +70,81 @@ class SubmitAnalysisScreen extends StatelessWidget {
         child: CustomScrollView(
           slivers: [
 
-            /// 🔹 Seção principal (Nova análise)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                    children: [
 
-                    Text(
-                      "Envie suas Forrageiras",
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                      Text(
+                        "Envie suas Forrageiras",
+                        style: theme.textTheme.headlineSmall
+                            ?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 6),
+                      const SizedBox(height: 24),
 
-                    const SizedBox(height: 20),
+                      AppTextField(
+                        controller: _nameController,
+                        label: "Nome da Forrageira",
+                        icon: Icons.grass,
+                        validator: (value) {
+                          if (value == null ||
+                              value.isEmpty) {
+                            return "Informe o nome";
+                          }
+                          return null;
+                        },
+                      ),
 
-                    const NewAnalysisCard(),
+                      const SizedBox(height: 16),
 
-                    const SizedBox(height: 28),
+                      AppTextField(
+                        controller: _locationController,
+                        label: "Local da Coleta",
+                        icon: Icons.location_on_outlined,
+                        validator: (value) {
+                          if (value == null ||
+                              value.isEmpty) {
+                            return "Informe o local";
+                          }
+                          return null;
+                        },
+                      ),
 
-                    const SizedBox(height: 12),
-                  ],
+                      const SizedBox(height: 16),
+
+                      AppTextField(
+                        controller: _notesController,
+                        label: "Observações",
+                        icon: Icons.note_alt_outlined,
+                        maxLines: 3,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      const NewAnalysisCard(),
+
+                      const SizedBox(height: 24),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _submitForm,
+                          child: const Text("Enviar"),
+                        ),
+                      ),
+
+
+                      const SizedBox(height: 40),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -68,7 +157,9 @@ class SubmitAnalysisScreen extends StatelessWidget {
         onTap: (i) {},
       ),
 
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation:
+      FloatingActionButtonLocation.centerDocked,
+
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         child: const Icon(Icons.camera_alt),

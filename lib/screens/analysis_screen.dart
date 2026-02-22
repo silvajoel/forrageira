@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../widgets/new_analysis_card.dart';
 import '../widgets/analysis_item.dart';
-// Note que removemos o import do bottom_nav_custom.dart, pois não será mais usado aqui.
+import '../widgets/bottom_nav_custom.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+class AnalysisScreen extends StatelessWidget {
+  const AnalysisScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -12,11 +12,11 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
-          children: [
+        title: Row(
+          children: const [
             Icon(Icons.grass),
             SizedBox(width: 8),
-            Text('Forrageiras'),
+            Text('Minhas Análises'),
           ],
         ),
         actions: const [
@@ -39,27 +39,7 @@ class HomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
 
-                    Text(
-                      "Bem-vindo 👋",
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    Text(
-                      "Envie uma imagem da forrageira para identificação.",
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-
                     const SizedBox(height: 20),
-
-                    const NewAnalysisCard(),
-
-                    const SizedBox(height: 28),
 
                     /// 🔹 Título da lista
                     Row(
@@ -71,10 +51,6 @@ class HomeScreen extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        TextButton(
-                          onPressed: () {},
-                          child: const Text("Ver todas"),
-                        )
                       ],
                     ),
 
@@ -107,9 +83,6 @@ class HomeScreen extends StatelessWidget {
                       date: '21:00 11/01/2026',
                       status: 'Finalizado',
                     ),
-                    // Mantive o SizedBox de 100 aqui embaixo. Isso é excelente para
-                    // garantir que o último item não fique escondido atrás do
-                    // FloatingActionButton!
                     SizedBox(height: 100),
                   ],
                 ),
@@ -119,6 +92,19 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
 
+      bottomNavigationBar: BottomNavCustom(
+        currentIndex: 0,
+        onTap: (i) {},
+      ),
+
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          //print("FAB: tentando navegar para /submitanalysis");
+          Navigator.pushNamed(context, '/submitanalysis');
+        },
+        child: const Icon(Icons.camera_alt),
+      ),
     );
   }
 }

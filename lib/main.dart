@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:forrageira/screens/analysis_screen.dart';
 import 'package:forrageira/screens/forgot_password_screen.dart';
+import 'package:forrageira/screens/profile_screen.dart';
 import 'package:forrageira/screens/register_screen.dart';
 import 'package:forrageira/screens/submit_analysis_screen.dart';
 import 'firebase_options.dart';
@@ -32,6 +34,8 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/forgotpassword': (context) => const ForgotPasswordScreen(),
         '/submitanalysis': (context) => const SubmitAnalysisScreen(),
+        '/analysis': (context) => const AnalysisScreen(),
+        '/profile': (context) => const ProfileScreen(),
       },
     );
   }

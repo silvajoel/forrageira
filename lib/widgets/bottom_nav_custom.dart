@@ -18,25 +18,25 @@ class BottomNavCustom extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             IconButton(
-              onPressed: () => onTap?.call(0),
+              onPressed: () => onTap?.call(0), // Chama o índice 0
               icon: const Icon(Icons.home),
-              color: Colors.white,
+              color: currentIndex == 0 ? Colors.white : Colors.white54,
             ),
             IconButton(
-              onPressed: () => onTap?.call(1),
+              onPressed: () => onTap?.call(1), // Chama o índice 1
               icon: const Icon(Icons.analytics_outlined),
-              color: Colors.white,
+              color: currentIndex == 1 ? Colors.white : Colors.white54,
             ),
-            const SizedBox(width: 48), // espaço central para FAB
+            const SizedBox(width: 48), // Espaço central para FAB
             IconButton(
-              onPressed: () => onTap?.call(2),
+              onPressed: () => onTap?.call(2), // Chama o índice 2
               icon: const Icon(Icons.person_outline),
-              color: Colors.white,
+              color: currentIndex == 2 ? Colors.white : Colors.white54,
             ),
             IconButton(
-              onPressed: () => onTap?.call(3),
+              onPressed: () => onTap?.call(3), // Chama o índice 3
               icon: const Icon(Icons.notifications_none),
-              color: Colors.white,
+              color: currentIndex == 3 ? Colors.white : Colors.white54,
             ),
           ],
         ),
