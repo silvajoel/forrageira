@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:forrageira/screens/forgot_password_screen.dart';
+import 'package:forrageira/screens/register_screen.dart';
+import 'package:forrageira/screens/submit_analysis_screen.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
-import 'screens/analytics_screen.dart';
+import 'screens/home_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,13 +24,14 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Forrageira',
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-      ),
+      theme: appTheme,
       initialRoute: '/',
       routes: {
         '/': (context) => const LoginScreen(),
-        '/analytics': (context) => const AnalyticsScreen(),
+        '/home': (context) => const HomeScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/forgotpassword': (context) => const ForgotPasswordScreen(),
+        '/submitanalysis': (context) => const SubmitAnalysisScreen(),
       },
     );
   }

@@ -5,18 +5,20 @@ class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() =>
-      _ForgotPasswordScreenState();
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _email = TextEditingController();
   final _auth = AuthService();
 
+  bool loading = false;
+
   void _reset() async {
     await _auth.resetPassword(_email.text.trim());
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Email enviado!")));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Email enviado!")));
     Navigator.pop(context);
   }
 
@@ -38,9 +40,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               const Text(
                 "Recuperar Senha",
                 style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green),
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
               ),
               const SizedBox(height: 20),
               TextField(
@@ -55,9 +58,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 onPressed: _reset,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
+                  foregroundColor: Colors.white, // cor do texto
                   minimumSize: const Size(double.infinity, 45),
                 ),
-                child: const Text("Enviar instruções"),
+                child: loading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Enviar instruções"),
               ),
             ],
           ),

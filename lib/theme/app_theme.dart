@@ -2,24 +2,38 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
 final ThemeData appTheme = ThemeData(
-  primaryColor: AppColors.green,
-  scaffoldBackgroundColor: AppColors.greenLight,
+  useMaterial3: true,
+
   fontFamily: 'Roboto',
+  scaffoldBackgroundColor: AppColors.greenLight,
+
+  colorScheme: const ColorScheme.light(
+    primary: AppColors.green,
+    onPrimary: Colors.white,
+    secondary: AppColors.accent,
+    surface: AppColors.cardBg,
+    onSurface: AppColors.textPrimary,
+  ),
+
   appBarTheme: const AppBarTheme(
     elevation: 0,
     centerTitle: true,
-    backgroundColor: Colors.transparent,
-    iconTheme: IconThemeData(color: AppColors.greenDark),
-    titleTextStyle: TextStyle(
-      color: AppColors.greenDark,
-      fontSize: 18,
-      fontWeight: FontWeight.bold,
-    ),
+    backgroundColor: AppColors.green,
+    foregroundColor: Colors.white,
   ),
+
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
       backgroundColor: AppColors.green,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      foregroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(10)),
+      ),
     ),
+  ),
+
+  floatingActionButtonTheme: const FloatingActionButtonThemeData(
+    backgroundColor: AppColors.greenDark,
+    foregroundColor: Colors.white,
   ),
 );

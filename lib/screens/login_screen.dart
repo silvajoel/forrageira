@@ -15,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _senha = TextEditingController();
   final _auth = AuthService();
 
+  bool _obscureSenha = true;
   bool loading = false;
 
   void _login() async {
@@ -25,17 +26,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Login realizado!")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Login realizado!")));
 
-      Navigator.pushReplacementNamed(context, '/analytics');
+      Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erro: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Erro: $e")));
     }
 
     if (mounted) {
@@ -48,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceVariant,
+      backgroundColor: Colors.green.shade100,
       body: Center(
         child: SingleChildScrollView(
           child: Container(
@@ -68,19 +69,13 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.agriculture,
-                  size: 50,
-                  color: theme.colorScheme.primary,
-                ),
-
                 const SizedBox(height: 10),
 
                 Text(
                   "Forrageira",
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
+                    color: Colors.green,
                   ),
                 ),
 
@@ -98,10 +93,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 TextField(
                   controller: _senha,
-                  obscureText: true,
-                  decoration: const InputDecoration(
+                  obscureText: _obscureSenha,
+                  decoration: InputDecoration(
                     labelText: "Senha",
-                    prefixIcon: Icon(Icons.lock),
+                    prefixIcon: const Icon(Icons.lock),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureSenha ? Icons.visibility : Icons.visibility_off,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureSenha = !_obscureSenha;
+                        });
+                      },
+                    ),
                   ),
                 ),
 
@@ -112,38 +117,36 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 48,
                   child: ElevatedButton(
                     onPressed: loading ? null : _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white, // cor do texto
+                      minimumSize: const Size(double.infinity, 45),
+                    ),
                     child: loading
-                        ? CircularProgressIndicator(
-                      color: theme.colorScheme.onPrimary,
-                    )
+                        ? const CircularProgressIndicator(color: Colors.white)
                         : const Text("Entrar"),
                   ),
                 ),
-
                 const SizedBox(height: 10),
 
                 TextButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ForgotPasswordScreen(),
-                      ),
-                    );
+                    Navigator.pushNamed(context, '/forgotpassword');
                   },
-                  child: const Text("Esqueceu a senha?"),
+                  child: const Text(
+                    "Esqueceu a senha?",
+                    style: TextStyle(color: Colors.green),
+                  ),
                 ),
 
                 TextButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const RegisterScreen(),
-                      ),
-                    );
+                    Navigator.pushNamed(context, '/register');
                   },
-                  child: const Text("Criar conta"),
+                  child: const Text(
+                    "Criar conta",
+                    style: TextStyle(color: Colors.green),
+                  ),
                 ),
               ],
             ),
