@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:forrageira/widgets/bottom_nav_custom.dart';
 import '../widgets/new_analysis_card.dart';
 import '../widgets/analysis_item.dart';
-// Note que removemos o import do bottom_nav_custom.dart, pois não será mais usado aqui.
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -22,7 +22,7 @@ class HomeScreen extends StatelessWidget {
         actions: const [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Icon(Icons.person_outline),
+            child: Icon(Icons.notifications_none),
           ),
         ],
       ),
@@ -31,7 +31,7 @@ class HomeScreen extends StatelessWidget {
         child: CustomScrollView(
           slivers: [
 
-            /// 🔹 Seção principal (Nova análise)
+            /// Seção principal (Nova análise)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -61,7 +61,7 @@ class HomeScreen extends StatelessWidget {
 
                     const SizedBox(height: 28),
 
-                    /// 🔹 Título da lista
+                    /// Título da lista
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -84,7 +84,7 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
 
-            /// 🔹 Lista de análises
+            ///  Lista de análises
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList(
@@ -107,9 +107,7 @@ class HomeScreen extends StatelessWidget {
                       date: '21:00 11/01/2026',
                       status: 'Finalizado',
                     ),
-                    // Mantive o SizedBox de 100 aqui embaixo. Isso é excelente para
-                    // garantir que o último item não fique escondido atrás do
-                    // FloatingActionButton!
+
                     SizedBox(height: 100),
                   ],
                 ),
@@ -118,7 +116,6 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
-
     );
   }
 }

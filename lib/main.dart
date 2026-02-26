@@ -5,6 +5,7 @@ import 'package:forrageira/screens/forgot_password_screen.dart';
 import 'package:forrageira/screens/profile_screen.dart';
 import 'package:forrageira/screens/register_screen.dart';
 import 'package:forrageira/screens/submit_analysis_screen.dart';
+import 'package:forrageira/screens/main_screen.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -30,7 +31,7 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const LoginScreen(),
-        '/home': (context) => const HomeScreen(),
+        '/home': (context) => const MainScreen(),
         '/register': (context) => const RegisterScreen(),
         '/forgotpassword': (context) => const ForgotPasswordScreen(),
         '/submitanalysis': (context) => const SubmitAnalysisScreen(),

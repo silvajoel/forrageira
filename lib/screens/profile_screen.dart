@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/analysis_item.dart';
 import '../widgets/bottom_nav_custom.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+
+  final User? user = FirebaseAuth.instance.currentUser;
 
   @override
   Widget build(BuildContext context) {
@@ -11,17 +20,17 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             Icon(Icons.grass),
             SizedBox(width: 8),
-            Text('Minhas Análises'),
+            Text('Minha Conta'),
           ],
         ),
         actions: const [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Icon(Icons.person_outline),
+            child: Icon(Icons.notifications_none),
           ),
         ],
       ),
@@ -30,60 +39,59 @@ class ProfileScreen extends StatelessWidget {
         child: CustomScrollView(
           slivers: [
 
-            /// 🔹 Seção principal (Nova análise)
+            /// Seção de Perfil
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-
-                    const SizedBox(height: 20),
-
-                    /// 🔹 Título da lista
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
                       children: [
-                        Text(
-                          'Minhas Análises',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
+
+                        /// Avatar
+                        CircleAvatar(
+                          radius: 35,
+                          backgroundColor: theme.colorScheme.primary,
+                          child: const Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                        ),
+
+                        const SizedBox(width: 20),
+
+                        /// Informações do usuário
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Usuário',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                user?.email ?? 'E-mail não disponível',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 12),
-                  ],
-                ),
-              ),
-            ),
-
-            /// 🔹 Lista de análises
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate(
-                  const [
-                    AnalysisItem(
-                      title: 'Brachiaria Brizantha',
-                      date: '21:00 11/01/2026',
-                      status: 'Finalizado',
-                    ),
-                    SizedBox(height: 10),
-                    AnalysisItem(
-                      title: 'Brachiaria Brizantha',
-                      date: '21:00 11/01/2026',
-                      status: 'Em análise',
-                    ),
-                    SizedBox(height: 10),
-                    AnalysisItem(
-                      title: 'Brachiaria Brizantha',
-                      date: '21:00 11/01/2026',
-                      status: 'Finalizado',
-                    ),
-                    SizedBox(height: 100),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -91,19 +99,6 @@ class ProfileScreen extends StatelessWidget {
         ),
       ),
 
-      bottomNavigationBar: BottomNavCustom(
-        currentIndex: 0,
-        onTap: (i) {},
-      ),
-
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          //print("FAB: tentando navegar para /submitanalysis");
-          Navigator.pushNamed(context, '/submitanalysis');
-        },
-        child: const Icon(Icons.camera_alt),
-      ),
     );
   }
 }

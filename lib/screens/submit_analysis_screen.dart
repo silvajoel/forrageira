@@ -151,19 +151,6 @@ class _SubmitAnalysisScreenState
           ],
         ),
       ),
-
-      bottomNavigationBar: BottomNavCustom(
-        currentIndex: 0,
-        onTap: (i) {},
-      ),
-
-      floatingActionButtonLocation:
-      FloatingActionButtonLocation.centerDocked,
-
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        child: const Icon(Icons.camera_alt),
-      ),
     );
   }
 }

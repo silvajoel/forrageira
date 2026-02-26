@@ -91,20 +91,6 @@ class AnalysisScreen extends StatelessWidget {
           ],
         ),
       ),
-
-      bottomNavigationBar: BottomNavCustom(
-        currentIndex: 0,
-        onTap: (i) {},
-      ),
-
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          //print("FAB: tentando navegar para /submitanalysis");
-          Navigator.pushNamed(context, '/submitanalysis');
-        },
-        child: const Icon(Icons.camera_alt),
-      ),
     );
   }
 }
