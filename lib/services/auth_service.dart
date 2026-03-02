@@ -1,12 +1,25 @@
 import 'dart:developer';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 
-class AuthService {
+class AuthService extends ChangeNotifier{
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   User? get currentUser => _auth.currentUser;
+  bool isloading = true;
 
+  AuthService() {
+    _authCheck();
+  }
+
+  _authCheck() {
+    _auth.authStateChanges().listen((User? currentUser) {
+      currentUser = (currentUser == null) ? null : currentUser;
+      isloading = false;
+      notifyListeners();
+    });
+  }
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   Future<User?> login(String email, String senha) async {
