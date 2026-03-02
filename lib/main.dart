@@ -6,7 +6,6 @@ import 'package:forrageira/screens/analysis_screen.dart';
 import 'package:forrageira/screens/forgot_password_screen.dart';
 import 'package:forrageira/screens/profile_screen.dart';
 import 'package:forrageira/screens/register_screen.dart';
-import 'package:forrageira/screens/reset_password_screen.dart';
 import 'package:forrageira/screens/submit_analysis_screen.dart';
 import 'package:forrageira/screens/main_screen.dart';
 import 'package:forrageira/services/auth_service.dart';
@@ -58,7 +57,6 @@ class MyApp extends StatelessWidget {
         '/submitanalysis': (context) => const SubmitAnalysisScreen(),
         '/analysis': (context) => const AnalysisScreen(),
         '/profile': (context) => const ProfileScreen(),
-        '/resetpassword': (context) => const ResetPasswordScreen(),
 
         // Admin routes
         '/admin-login': (context) => const AdminLoginPage(),
