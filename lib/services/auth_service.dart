@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
 
   User? _currentUser;
   bool isLoading = true;
@@ -23,6 +25,15 @@ class AuthService extends ChangeNotifier {
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  Future<String?> getUsername() async {
+    final uid = currentUser?.uid;
+    if (uid == null) return null;
+
+    final doc = await _firestore.collection('users').doc(uid).get();
+
+    return doc.data()?['name'];
+  }
+
   Future<User?> login(String email, String senha) async {
     final cred = await _auth.signInWithEmailAndPassword(
       email: email,
@@ -33,8 +44,7 @@ class AuthService extends ChangeNotifier {
 
   Future<User?> register(String email, String senha) async {
     try {
-      final UserCredential cred =
-      await _auth.createUserWithEmailAndPassword(
+      final UserCredential cred = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: senha,
       );
@@ -63,9 +73,19 @@ class AuthService extends ChangeNotifier {
 
   Future<void> updateUsername(String username) async {
     if (_currentUser == null) return;
+
+    final uid = _currentUser!.uid;
+
+    // Atualiza no Firebase Auth
     await _currentUser!.updateDisplayName(username);
+
+    // Atualiza no Firestore
+    await _firestore.collection('users').doc(uid).update({'name': username});
+
+    // Recarrega usuário
     await _currentUser!.reload();
     _currentUser = _auth.currentUser;
+
     notifyListeners();
   }
 

@@ -15,6 +15,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _passwordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _nameController = TextEditingController();
 
   // States
   bool _obscurePassword = true;
@@ -26,6 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _passwordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -52,14 +54,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _buildProfileCard(theme, username, email),
+            FutureBuilder<String?>(
+              future: authService.getUsername(),
+              builder: (context, snapshot) {
+                final username = snapshot.data ?? "Usuário";
+                final email = authService.currentUser?.email ?? "Sem email";
+
+                return _buildProfileCard(theme, username, email);
+              },
+            ),
             const SizedBox(height: 16),
             const Text(
               "Configurações",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            _buildOptionsCard(authService, email),
+            _buildOptionsCard(authService, email, username),
           ],
         ),
       ),
@@ -101,7 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildOptionsCard(AuthService authService, String email) {
+  Widget _buildOptionsCard(AuthService authService, String email, String username,) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 4,
@@ -110,7 +120,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ProfileOption(
             icon: Icons.edit,
             title: 'Atualizar nome de usuário',
-            onTap: _updateUsername,
+            onTap: () => _showChangeUserName(authService, username),
           ),
           const Divider(height: 1),
           ProfileOption(
@@ -220,6 +230,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showChangeUserName(AuthService authService, String currentName) {
+    _nameController.text = currentName;
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (_, setState) {
+            return AlertDialog(
+              title: const Text('Alterar nome'),
+              content: TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: "Nome",
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancelar"),
+                ),
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                    if (_nameController.text.trim().isEmpty) {
+                      _showError("Nome não pode ser vazio");
+                      return;
+                    }
+
+                    try {
+                      setState(() => isLoading = true);
+                      await authService
+                          .updateUsername(_nameController.text.trim());
+                      Navigator.pop(context);
+                      _showSuccess("Nome alterado com sucesso");
+                    } catch (e) {
+                      setState(() => isLoading = false);
+                      _showError("Erro ao atualizar nome");
+                    }
+                  },
+                  child: isLoading
+                      ? const CircularProgressIndicator(strokeWidth: 2)
+                      : const Text("Salvar"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
   // =========================
   // EXCLUIR CONTA
   // =========================
@@ -238,7 +304,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               content: TextField(
                 controller: senhaController,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: "Senha"),
+                decoration: InputDecoration(
+                    labelText: "Senha",
+                    border: const OutlineInputBorder(),
+                ),
+
               ),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),

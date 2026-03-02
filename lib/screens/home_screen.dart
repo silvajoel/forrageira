@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:forrageira/services/auth_service.dart';
 import 'package:forrageira/widgets/bottom_nav_custom.dart';
+import 'package:provider/provider.dart';
 import '../widgets/new_analysis_card.dart';
 import '../widgets/analysis_item.dart';
 
@@ -9,6 +11,9 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final authService = context.watch<AuthService>();
+    final user = authService.currentUser;
+    final username = user?.displayName ?? "Usuário";
 
     return Scaffold(
       appBar: AppBar(
@@ -40,7 +45,7 @@ class HomeScreen extends StatelessWidget {
                   children: [
 
                     Text(
-                      "Bem-vindo 👋",
+                      "Bem-vindo, $username!",
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
