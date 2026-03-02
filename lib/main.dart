@@ -13,6 +13,16 @@ import 'package:forrageira/services/auth_service.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 
+// Admin imports
+import 'screens/admin/admin_login_page.dart';
+import 'screens/admin/admin_dashboard_page.dart';
+import 'screens/admin/admin_requests_page.dart';
+import 'screens/admin/admin_request_detail_page.dart';
+import 'screens/admin/admin_clients_page.dart';
+import 'screens/admin/admin_history_page.dart';
+import 'screens/admin/admin_species_page.dart';
+import 'screens/admin/admin_settings_page.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -38,7 +48,7 @@ class MyApp extends StatelessWidget {
       title: 'Forrageira',
       theme: appTheme,
 
-      /// Controle de autenticação
+      // Controle de autenticação
       home: AuthCheck(),
 
       routes: {
@@ -49,6 +59,16 @@ class MyApp extends StatelessWidget {
         '/analysis': (context) => const AnalysisScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/resetpassword': (context) => const ResetPasswordScreen(),
+
+        // Admin routes
+        '/admin-login': (context) => const AdminLoginPage(),
+        '/admin': (context) => const AdminDashboardPage(),
+        '/admin/requests': (context) => const AdminRequestsPage(),
+        '/admin/request': (context) => const AdminRequestDetailPage(),
+        '/admin/clients': (context) => const AdminClientsPage(),
+        '/admin/history': (context) => const AdminHistoryPage(),
+        '/admin/species': (context) => const AdminSpeciesPage(),
+        '/admin/settings': (context) => const AdminSettingsPage(),
       },
     );
   }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,6 +14,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _senha = TextEditingController();
   final _auth = AuthService();
+  final _userService = UserService();
 
   bool _obscureSenha = true;
   bool loading = false;
@@ -20,21 +23,71 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => loading = true);
 
     try {
-      await _auth.login(_email.text.trim(), _senha.text.trim());
+      final user = await _auth.login(
+        _email.text.trim(),
+        _senha.text.trim(),
+      );
+
+      if (user == null) {
+        throw Exception("Falha no login.");
+      }
+
+      // 🔥 Busca perfil no Firestore
+      final profile = await _userService.getProfile(user.uid);
+      final role = profile?['role'] ?? 'user';
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Login realizado!")));
+      // 🚫 Se for admin, bloqueia login no app
+      if (role == 'admin') {
+        await _auth.logout();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Essa conta é administrativa. Use o painel web."),
+          ),
+        );
+
+        setState(() => loading = false);
+        return;
+      }
+
+      // ✅ Usuário normal entra no app
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Login realizado!")),
+      );
 
       Navigator.pushReplacementNamed(context, '/home');
+
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      String mensagem = "Erro ao fazer login.";
+
+      switch (e.code) {
+        case 'user-not-found':
+          mensagem = "Usuário não encontrado.";
+          break;
+        case 'wrong-password':
+          mensagem = "Senha incorreta.";
+          break;
+        case 'invalid-email':
+          mensagem = "E-mail inválido.";
+          break;
+        default:
+          mensagem = "Erro de autenticação.";
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensagem)),
+      );
+
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Erro: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Erro inesperado. Tente novamente.")),
+      );
     }
 
     if (mounted) {
