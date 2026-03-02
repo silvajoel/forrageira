@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:forrageira/screens/analysis_screen.dart';
 import 'package:forrageira/screens/home_screen.dart';
 import 'package:forrageira/screens/profile_screen.dart';
-import 'package:forrageira/screens/reset_password_screen.dart';
 import 'package:forrageira/screens/submit_analysis_screen.dart';
 import 'package:forrageira/widgets/bottom_nav_custom.dart';
 
@@ -22,7 +21,6 @@ class _MainScreenState extends State<MainScreen> {
     AnalysisScreen(),
     SubmitAnalysisScreen(),
     ProfileScreen(),
-    ResetPasswordScreen(),
   ];
 
   void _onTap(int index) {
