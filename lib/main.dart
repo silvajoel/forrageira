@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:forrageira/services/forage_service.dart';
 import 'package:forrageira/widgets/auth_check.dart';
 import 'package:provider/provider.dart';
 import 'package:forrageira/screens/analysis_screen.dart';
@@ -30,8 +31,11 @@ void main() async {
   );
 
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AuthService(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => ForageService()), // 👈 adicionar
+      ],
       child: const MyApp(),
     ),
   );
