@@ -10,7 +10,7 @@ class ForageService extends ChangeNotifier {
     required String userId,
     required double latitude,
     required double longitude,
-    String? imageUrl,
+    List<String>? imageUrls
   }) async {
 
     await _firestore.collection('analysis_requests').add({
@@ -19,7 +19,7 @@ class ForageService extends ChangeNotifier {
       'user_id': userId,
       'latitude': latitude,
       'longitude': longitude,
-      'image_url': imageUrl ?? "",
+      'images': imageUrls,
       'status': 'pending',
       'created_at': FieldValue.serverTimestamp(),
     });
