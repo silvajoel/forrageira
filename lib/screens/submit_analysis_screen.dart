@@ -3,9 +3,13 @@ import 'package:forrageira/services/forage_service.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../widgets/app_text_field.dart';
 import '../widgets/new_analysis_card.dart';
+
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class SubmitAnalysisScreen extends StatefulWidget {
   const SubmitAnalysisScreen({Key? key}) : super(key: key);
@@ -18,8 +22,15 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final user = FirebaseAuth.instance.currentUser;
+
   final _nameController = TextEditingController();
   final _notesController = TextEditingController();
+
+  final ImagePicker picker = ImagePicker();
+
+  List<File> selectedImages = [];
+
+  bool isUploading = false;
 
   @override
   void dispose() {
@@ -28,7 +39,9 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     super.dispose();
   }
 
+  // LOCALIZAÇÃO
   Future<Position> _getLocation() async {
+
     bool serviceEnabled;
     LocationPermission permission;
 
@@ -52,22 +65,80 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     );
   }
 
+  // SELECIONAR IMAGENS DA GALERIA
+  Future<void> pickImages() async {
+
+    final List<XFile> images = await picker.pickMultiImage();
+
+    if (images.isNotEmpty) {
+      setState(() {
+        selectedImages.addAll(images.map((e) => File(e.path)));
+      });
+    }
+  }
+
+  // UPLOAD PARA SUPABASE
+  Future<List<String>> uploadImages() async {
+
+    final supabase = Supabase.instance.client;
+
+    List<String> imageUrls = [];
+
+    for (var image in selectedImages) {
+
+      final fileName = DateTime.now().millisecondsSinceEpoch.toString();
+
+      final path = "images/${user!.uid}/$fileName.jpg";
+
+      await supabase.storage
+          .from('forrageiras')
+          .upload(path, image);
+
+      final url = supabase.storage
+          .from('forrageiras')
+          .getPublicUrl(path);
+
+      imageUrls.add(url);
+    }
+
+    return imageUrls;
+  }
+
+  // ENVIO DO FORMULÁRIO
   Future<void> _submitForm() async {
 
     if (!_formKey.currentState!.validate()) return;
-    print("Teste");
+
+    if (selectedImages.length < 5) {
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Envie no mínimo 5 imagens da forrageira."),
+        ),
+      );
+
+      return;
+    }
+
+    setState(() {
+      isUploading = true;
+    });
+
     final forageService = Provider.of<ForageService>(context, listen: false);
 
     try {
-      print("Teste");
+
       Position position = await _getLocation();
+
+      // upload imagens
+      List<String> imageUrls = await uploadImages();
 
       await forageService.createAnalysisRequest(
         name: _nameController.text.trim(),
         notes: _notesController.text.trim(),
         latitude: position.latitude,
         longitude: position.longitude,
-        imageUrl: null, // preparado para Firebase Storage
+        imageUrls: imageUrls, // agora envia lista
         userId: user!.uid,
       );
 
@@ -79,10 +150,6 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
 
       Navigator.pushReplacementNamed(context, '/home');
 
-      _formKey.currentState!.reset();
-      _nameController.clear();
-      _notesController.clear();
-
     } catch (e) {
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -90,6 +157,12 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
           content: Text("Erro ao enviar: $e"),
         ),
       );
+
+    } finally {
+
+      setState(() {
+        isUploading = false;
+      });
 
     }
   }
@@ -111,72 +184,99 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
       ),
 
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
+        child: SingleChildScrollView(
 
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
 
-                child: Form(
-                  key: _formKey,
+            child: Form(
+              key: _formKey,
 
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
 
-                    children: [
+                children: [
 
-                      Text(
-                        "Envie suas Forrageiras",
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      AppTextField(
-                        controller: _nameController,
-                        label: "Nome da Forrageira",
-                        icon: Icons.grass,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return "Informe o nome";
-                          }
-                          return null;
-                        },
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      AppTextField(
-                        controller: _notesController,
-                        label: "Observações",
-                        icon: Icons.note_alt_outlined,
-                        maxLines: 3,
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      const NewAnalysisCard(),
-
-                      const SizedBox(height: 24),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _submitForm,
-                          child: const Text("Enviar"),
-                        ),
-                      ),
-
-                      const SizedBox(height: 40),
-                    ],
+                  Text(
+                    "Envie suas Forrageiras",
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
+
+                  const SizedBox(height: 24),
+
+                  AppTextField(
+                    controller: _nameController,
+                    label: "Nome da Forrageira",
+                    icon: Icons.grass,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return "Informe o nome";
+                      }
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  AppTextField(
+                    controller: _notesController,
+                    label: "Observações",
+                    icon: Icons.note_alt_outlined,
+                    maxLines: 3,
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  const NewAnalysisCard(),
+
+                  const SizedBox(height: 24),
+
+                  ElevatedButton.icon(
+                    onPressed: pickImages,
+                    icon: const Icon(Icons.photo_library),
+                    label: const Text("Selecionar imagens"),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  if (selectedImages.isNotEmpty)
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: selectedImages.length,
+                      gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                      ),
+                      itemBuilder: (context, index) {
+                        return Image.file(
+                          selectedImages[index],
+                          fit: BoxFit.cover,
+                        );
+                      },
+                    ),
+
+                  const SizedBox(height: 24),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: isUploading ? null : _submitForm,
+                      child: isUploading
+                          ? const CircularProgressIndicator()
+                          : const Text("Enviar"),
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
