@@ -12,7 +12,7 @@ class UserService {
     await _db.collection('users').doc(uid).set({
       'name': name,
       'email': email,
-      'role': role,        // 'user' ou 'admin'
+      'role': role,
       'active': true,
       'createdAt': FieldValue.serverTimestamp(),
     });
@@ -36,5 +36,65 @@ class UserService {
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> streamProfile(String uid) {
     return _db.collection('users').doc(uid).snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> streamUsers() {
+    // return _db
+    //    .collection('users')
+    //    .orderBy('createdAt', descending: true)
+    //    .snapshots();
+    return _db.collection('users').snapshots();
+  }
+
+  Future<void> createClient({
+    required String name,
+    required String email,
+    bool active = true,
+    String role = 'user',
+  }) async {
+    final doc = _db.collection('users').doc();
+
+    await doc.set({
+      'name': name,
+      'email': email,
+      'role': role,
+      'active': active,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateUser({
+    required String uid,
+    required String name,
+    required String email,
+    required bool active,
+  }) async {
+    await _db.collection('users').doc(uid).update({
+      'name': name,
+      'email': email,
+      'active': active,
+    });
+  }
+
+  Future<void> setRole({
+    required String uid,
+    required String role,
+  }) async {
+    await _db.collection('users').doc(uid).update({
+      'role': role,
+    });
+  }
+
+  Future<void> setActive({
+    required String uid,
+    required bool active,
+  }) async {
+    await _db.collection('users').doc(uid).update({
+      'active': active,
+    });
+  }
+
+  Future<void> deleteUser(String uid) async {
+    await _db.collection('users').doc(uid).delete();
   }
 }
