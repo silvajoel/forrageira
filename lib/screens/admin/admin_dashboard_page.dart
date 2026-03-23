@@ -1,33 +1,55 @@
 import 'package:flutter/material.dart';
-//import '../../data/admin_store.dart';
-//import '../../data/models.dart';
 
-class AdminDashboardPage extends StatefulWidget {
+class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
 
   @override
-  State<AdminDashboardPage> createState() => _AdminDashboardPageState();
-}
-
-class _AdminDashboardPageState extends State<AdminDashboardPage> {
-  final store = AdminStore.instance;
-
-  @override
-  void initState() {
-    super.initState();
-    store.addListener(_onChange);
-  }
-
-  @override
-  void dispose() {
-    store.removeListener(_onChange);
-    super.dispose();
-  }
-
-  void _onChange() => setState(() {});
-
-  @override
   Widget build(BuildContext context) {
+    return ListView(
+      children: [
+        const Text(
+          'Dashboard',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 12),
+        _card(
+          title: 'Resumo',
+          child: const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text(
+              'Dashboard em ajuste. Os gráficos e indicadores ainda serão conectados ao Firestore.',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _card({required String title, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
   }
 }
