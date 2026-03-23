@@ -39,7 +39,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     super.dispose();
   }
 
-  // LOCALIZAÇÃO
+  /// LOCALIZAÇÃO
   Future<Position> _getLocation() async {
 
     bool serviceEnabled;
@@ -65,7 +65,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     );
   }
 
-  // SELECIONAR IMAGENS DA GALERIA
+  /// GALERIA
   Future<void> pickImages() async {
 
     final List<XFile> images = await picker.pickMultiImage();
@@ -77,7 +77,29 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     }
   }
 
-  // UPLOAD PARA SUPABASE
+  /// CÂMERA
+  Future<void> takePhoto() async {
+
+    final XFile? photo = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 85,
+    );
+
+    if (photo != null) {
+      setState(() {
+        selectedImages.add(File(photo.path));
+      });
+    }
+  }
+
+  /// REMOVER IMAGEM
+  void removeImage(int index) {
+    setState(() {
+      selectedImages.removeAt(index);
+    });
+  }
+
+  /// UPLOAD PARA SUPABASE
   Future<List<String>> uploadImages() async {
 
     final supabase = Supabase.instance.client;
@@ -104,7 +126,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     return imageUrls;
   }
 
-  // ENVIO DO FORMULÁRIO
+  /// ENVIO DO FORMULÁRIO
   Future<void> _submitForm() async {
 
     if (!_formKey.currentState!.validate()) return;
@@ -130,7 +152,6 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
 
       Position position = await _getLocation();
 
-      // upload imagens
       List<String> imageUrls = await uploadImages();
 
       await forageService.createAnalysisRequest(
@@ -138,7 +159,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
         notes: _notesController.text.trim(),
         latitude: position.latitude,
         longitude: position.longitude,
-        imageUrls: imageUrls, // agora envia lista
+        imageUrls: imageUrls,
         userId: user!.uid,
       );
 
@@ -174,8 +195,8 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             Icon(Icons.grass),
             SizedBox(width: 8),
             Text('Enviar Forrageira'),
@@ -233,14 +254,34 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
 
                   const SizedBox(height: 24),
 
-                  ElevatedButton.icon(
-                    onPressed: pickImages,
-                    icon: const Icon(Icons.photo_library),
-                    label: const Text("Selecionar imagens"),
+                  /// BOTÕES
+                  Row(
+                    children: [
+
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: takePhoto,
+                          icon: const Icon(Icons.camera_alt),
+                          label: const Text("Câmera"),
+                        ),
+                      ),
+
+                      const SizedBox(width: 10),
+
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: pickImages,
+                          icon: const Icon(Icons.photo_library),
+                          label: const Text("Galeria"),
+                        ),
+                      ),
+
+                    ],
                   ),
 
                   const SizedBox(height: 16),
 
+                  /// PREVIEW
                   if (selectedImages.isNotEmpty)
                     GridView.builder(
                       shrinkWrap: true,
@@ -253,9 +294,30 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
                         mainAxisSpacing: 8,
                       ),
                       itemBuilder: (context, index) {
-                        return Image.file(
-                          selectedImages[index],
-                          fit: BoxFit.cover,
+
+                        return GestureDetector(
+                          onTap: () => removeImage(index),
+                          child: Stack(
+                            children: [
+
+                              Positioned.fill(
+                                child: Image.file(
+                                  selectedImages[index],
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+
+                              const Positioned(
+                                right: 4,
+                                top: 4,
+                                child: Icon(
+                                  Icons.cancel,
+                                  color: Colors.white,
+                                ),
+                              ),
+
+                            ],
+                          ),
                         );
                       },
                     ),

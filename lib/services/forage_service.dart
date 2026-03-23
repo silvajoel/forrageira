@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class ForageService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final User? user = FirebaseAuth.instance.currentUser;
 
   Future<void> createAnalysisRequest({
     required String name,
@@ -10,9 +12,8 @@ class ForageService extends ChangeNotifier {
     required String userId,
     required double latitude,
     required double longitude,
-    List<String>? imageUrls
+    List<String>? imageUrls,
   }) async {
-
     await _firestore.collection('analysis_requests').add({
       'name': name,
       'notes': notes,
@@ -23,6 +24,21 @@ class ForageService extends ChangeNotifier {
       'status': 'pending',
       'created_at': FieldValue.serverTimestamp(),
     });
+  }
 
+  Stream<QuerySnapshot> connectStreamForages() {
+    return _firestore
+        .collection('analysis_requests')
+        .where('user_id', isEqualTo: user!.uid)
+        .limit(3)
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot> connectStreamAllForages() {
+    return _firestore
+        .collection('analysis_requests')
+        .where('user_id', isEqualTo: user!.uid)
+        .limit(20)
+        .snapshots();
   }
 }

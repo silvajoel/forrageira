@@ -1,4 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:forrageira/services/forage_service.dart';
+import 'package:provider/provider.dart';
 import '../widgets/new_analysis_card.dart';
 import '../widgets/analysis_item.dart';
 import '../widgets/bottom_nav_custom.dart';
@@ -6,9 +9,27 @@ import '../widgets/bottom_nav_custom.dart';
 class AnalysisScreen extends StatelessWidget {
   const AnalysisScreen({Key? key}) : super(key: key);
 
+  String getStatus(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Em análise';
+      case 'completed':
+        return 'Finalizado';
+      default:
+        return 'Desconhecido';
+    }
+  }
+
+  String formatDate(Timestamp timestamp) {
+    final date = timestamp.toDate();
+    return "${date.hour}:${date.minute.toString().padLeft(2, '0')} "
+        "${date.day}/${date.month}/${date.year}";
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final forageService = context.read<ForageService>();
 
     return Scaffold(
       appBar: AppBar(
@@ -60,33 +81,61 @@ class AnalysisScreen extends StatelessWidget {
               ),
             ),
 
-            /// 🔹 Lista de análises
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate(
-                  const [
-                    AnalysisItem(
-                      title: 'Brachiaria Brizantha',
-                      date: '21:00 11/01/2026',
-                      status: 'Finalizado',
+            /// Lista dinâmica
+            StreamBuilder<QuerySnapshot>(
+              stream: forageService.connectStreamAllForages(),
+              builder: (context, snapshot) {
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SliverToBoxAdapter(
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Center(
+                        child: Text("Nenhuma análise enviada ainda."),
+                      ),
                     ),
-                    SizedBox(height: 10),
-                    AnalysisItem(
-                      title: 'Brachiaria Brizantha',
-                      date: '21:00 11/01/2026',
-                      status: 'Em análise',
+                  );
+                }
+
+                final docs = snapshot.data!.docs;
+
+                return SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+
+                        final data =
+                        docs[index].data() as Map<String, dynamic>;
+
+                        final name = data['name'] ?? 'Sem nome';
+                        final status = getStatus(data['status'] ?? '');
+                        final timestamp = data['created_at'];
+
+                        final date = timestamp != null
+                            ? formatDate(timestamp)
+                            : '';
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: AnalysisItem(
+                            title: name,
+                            date: date,
+                            status: status,
+                          ),
+                        );
+                      },
+                      childCount: docs.length,
                     ),
-                    SizedBox(height: 10),
-                    AnalysisItem(
-                      title: 'Brachiaria Brizantha',
-                      date: '21:00 11/01/2026',
-                      status: 'Finalizado',
-                    ),
-                    SizedBox(height: 100),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
           ],
         ),
