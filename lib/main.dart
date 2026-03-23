@@ -23,6 +23,7 @@ import 'screens/admin/admin_clients_page.dart';
 import 'screens/admin/admin_history_page.dart';
 import 'screens/admin/admin_species_page.dart';
 import 'screens/admin/admin_settings_page.dart';
+import 'screens/admin/admin_home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,13 +70,13 @@ class MyApp extends StatelessWidget {
 
         // Admin routes
         '/admin-login': (context) => const AdminLoginPage(),
-        '/admin': (context) => const AdminDashboardPage(),
+        '/admin': (context) => AdminHomePage(),
         '/admin/requests': (context) => const AdminRequestsPage(),
-        '/admin/request': (context) => const AdminRequestDetailPage(),
-        '/admin/clients': (context) => const AdminClientsPage(),
-        '/admin/history': (context) => const AdminHistoryPage(),
-        '/admin/species': (context) => const AdminSpeciesPage(),
-        '/admin/settings': (context) => const AdminSettingsPage(),
+        // '/admin/request': (context) => const AdminRequestDetailPage(),
+        // '/admin/clients': (context) => const AdminClientsPage(),
+        // '/admin/history': (context) => const AdminHistoryPage(),
+        // '/admin/species': (context) => const AdminSpeciesPage(),
+        // '/admin/settings': (context) => const AdminSettingsPage(),
       },
     );
   }

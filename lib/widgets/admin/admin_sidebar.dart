@@ -3,7 +3,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class AdminSidebar extends StatelessWidget {
   final String selected;
-  const AdminSidebar({super.key, required this.selected});
+  final ValueChanged<String> onSelect;
+
+  const AdminSidebar({
+    super.key,
+    required this.selected,
+    required this.onSelect,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -13,12 +19,12 @@ class AdminSidebar extends StatelessWidget {
       padding: const EdgeInsets.only(top: 14),
       child: ListView(
         children: [
-          _item(context, Icons.home_outlined, 'Dashboard', '/admin', keyName: 'dashboard'),
-          _item(context, Icons.hourglass_empty, 'Solicitações Pendentes', '/admin/requests', keyName: 'pendentes'),
-          _item(context, Icons.inventory_2_outlined, 'Banco de Espécies', '/admin/species', keyName: 'banco'),
-          _item(context, Icons.history, 'Histórico de Laudos', '/admin/history', keyName: 'historico'),
-          _item(context, Icons.groups_outlined, 'Gestão de Clientes', '/admin/clients', keyName: 'clientes'),
-          _item(context, Icons.settings_outlined, 'Configurações', '/admin/settings', keyName: 'config'),
+          _item(Icons.home_outlined, 'Dashboard', 'dashboard'),
+          _item(Icons.hourglass_empty, 'Solicitações Pendentes', 'pendentes'),
+          _item(Icons.inventory_2_outlined, 'Banco de Espécies', 'banco'),
+          _item(Icons.history, 'Histórico de Laudos', 'historico'),
+          _item(Icons.groups_outlined, 'Gestão de Clientes', 'clientes'),
+          _item(Icons.settings_outlined, 'Configurações', 'config'),
           const Divider(color: Colors.white24),
           _logout(context),
         ],
@@ -26,13 +32,15 @@ class AdminSidebar extends StatelessWidget {
     );
   }
 
-  Widget _item(BuildContext context, IconData icon, String label, String route, {required String keyName}) {
+  Widget _item(IconData icon, String label, String keyName) {
     final isSel = selected == keyName;
     final fg = isSel ? Colors.white : Colors.white70;
     final bg = isSel ? Colors.white12 : Colors.transparent;
 
     return InkWell(
-      onTap: () => Navigator.pushReplacementNamed(context, route),
+      onTap: () {
+        if (!isSel) onSelect(keyName);
+      },
       child: Container(
         color: bg,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -41,7 +49,10 @@ class AdminSidebar extends StatelessWidget {
             Icon(icon, color: fg),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w600)),
+              child: Text(
+                label,
+                style: TextStyle(color: fg, fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         ),
@@ -53,13 +64,11 @@ class AdminSidebar extends StatelessWidget {
     return InkWell(
       onTap: () async {
         await FirebaseAuth.instance.signOut();
-
-        if (context.mounted) {
-          Navigator.of(context).pushNamedAndRemoveUntil(
-            '/admin-login',
-                (route) => false,
-          );
-        }
+        if (!context.mounted) return;
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/admin-login',
+          (route) => false,
+        );
       },
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -67,7 +76,10 @@ class AdminSidebar extends StatelessWidget {
           children: [
             Icon(Icons.logout, color: Colors.white70),
             SizedBox(width: 12),
-            Text('Logout', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+            Text(
+              'Logout',
+              style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+            ),
           ],
         ),
       ),

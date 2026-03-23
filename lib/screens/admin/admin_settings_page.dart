@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/user_service.dart';
 import '../../services/auth_service.dart';
-import '../../widgets/admin/admin_shell.dart';
 
 class AdminSettingsPage extends StatefulWidget {
   const AdminSettingsPage({super.key});
@@ -51,9 +50,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
   Widget build(BuildContext context) {
     final uid = _auth.currentUser?.uid;
 
-    return AdminShell(
-      selectedMenu: 'config',
-      child: ListView(
+    return ListView(
         children: [
           const Text(
             'Configurações',
@@ -215,8 +212,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
               },
             ),
         ],
-      ),
-    );
+      );
   }
 
   Future<void> _save(String uid) async {
