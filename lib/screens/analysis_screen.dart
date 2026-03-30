@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:forrageira/models/analysis_request.dart';
 import 'package:forrageira/screens/analysis_detail_screen.dart';
+import 'package:forrageira/screens/main_screen.dart';
 import 'package:forrageira/services/i_forage_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
@@ -25,9 +26,9 @@ class AnalysisScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final theme        = Theme.of(context);
     final forageService = context.read<IForageService>();
-    final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final userId       = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return Scaffold(
       appBar: AppBar(
@@ -104,12 +105,15 @@ class AnalysisScreen extends StatelessWidget {
                             title: item.name,
                             date: _formatDate(item.createdAt),
                             status: _statusLabel(item.status),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => AnalysisDetailScreen(analysis: item),
-                              ),
-                            ),
+                            // Primeira imagem como capa
+                            coverImageUrl: item.imageUrls.isNotEmpty
+                                ? item.imageUrls.first
+                                : null,
+                            onTap: () {
+                              final mainScreen =
+                              context.findAncestorStateOfType<MainScreenState>();
+                              mainScreen?.openAnalysisDetail(item);
+                            },
                           ),
                         );
                       },

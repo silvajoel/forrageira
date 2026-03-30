@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:forrageira/models/analysis_request.dart';
+import 'package:forrageira/screens/main_screen.dart';
 
 class AnalysisDetailScreen extends StatelessWidget {
   final AnalysisRequest analysis;
 
-  const AnalysisDetailScreen({Key? key, required this.analysis})
-      : super(key: key);
+  const AnalysisDetailScreen({
+    Key? key,
+    required this.analysis,
+  }) : super(key: key);
 
   String _formatDate(DateTime? date) {
     if (date == null) return '';
@@ -19,6 +22,14 @@ class AnalysisDetailScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            final mainScreen =
+            context.findAncestorStateOfType<MainScreenState>();
+            mainScreen?.setIndex(0); // volta para Home
+          },
+        ),
         title: const Row(
           children: [
             Icon(Icons.grass),
@@ -116,13 +127,23 @@ class AnalysisDetailScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        _buildInfoRow(Icons.calendar_today, 'Enviado em',
-            _formatDate(analysis.createdAt)),
+        _buildInfoRow(
+          Icons.calendar_today,
+          'Enviado em',
+          _formatDate(analysis.createdAt),
+        ),
         if (analysis.notes.isNotEmpty)
-          _buildInfoRow(Icons.note_alt_outlined, 'Observações', analysis.notes),
-        _buildInfoRow(Icons.location_on_outlined, 'Localização',
-            '${analysis.latitude.toStringAsFixed(4)}, '
-                '${analysis.longitude.toStringAsFixed(4)}'),
+          _buildInfoRow(
+            Icons.note_alt_outlined,
+            'Observações',
+            analysis.notes,
+          ),
+        _buildInfoRow(
+          Icons.location_on_outlined,
+          'Localização',
+          '${analysis.latitude.toStringAsFixed(4)}, '
+              '${analysis.longitude.toStringAsFixed(4)}',
+        ),
       ],
     );
   }
@@ -138,11 +159,16 @@ class AnalysisDetailScreen extends StatelessWidget {
           Expanded(
             child: RichText(
               text: TextSpan(
-                style: const TextStyle(fontSize: 14, color: Colors.black87),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black87,
+                ),
                 children: [
                   TextSpan(
                     text: '$label: ',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   TextSpan(text: value),
                 ],
@@ -236,7 +262,9 @@ class AnalysisDetailScreen extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             'Finalizado em ${_formatDate(analysis.reviewedAt)}',
-            style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.grey,
+            ),
           ),
         ],
       ],
@@ -274,7 +302,10 @@ class AnalysisDetailScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(value, style: const TextStyle(fontSize: 14)),
+                Text(
+                  value,
+                  style: const TextStyle(fontSize: 14),
+                ),
               ],
             ),
           ),
@@ -295,7 +326,8 @@ class AnalysisDetailScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.hourglass_top, color: Colors.orange, size: 48),
+          const Icon(Icons.hourglass_top,
+              color: Colors.orange, size: 48),
           const SizedBox(height: 12),
           Text(
             'Análise em andamento',

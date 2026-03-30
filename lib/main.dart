@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:forrageira/services/forage_service.dart';
 import 'package:forrageira/services/i_forage_service.dart';
 import 'package:forrageira/services/location_service.dart';
-import 'package:forrageira/services/supabase_image_storage_service.dart';
+import 'package:forrageira/services/plesk_image_storage_service.dart';
 import 'package:forrageira/widgets/auth_check.dart';
 import 'package:provider/provider.dart';
 import 'package:forrageira/screens/analysis_screen.dart';
@@ -13,7 +13,6 @@ import 'package:forrageira/screens/register_screen.dart';
 import 'package:forrageira/screens/submit_analysis_screen.dart';
 import 'package:forrageira/screens/main_screen.dart';
 import 'package:forrageira/services/auth_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 
@@ -31,11 +30,6 @@ void main() async {
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  await Supabase.initialize(
-    url: 'https://sytqmtsikrlrfawzmteh.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5dHFtdHNpa3JscmZhd3ptdGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTYwODMsImV4cCI6MjA4OTIzMjA4M30.TyukQEXQs52RIQmEN5AfwZaqTHwn0ke6rhP0LawfVeE',
   );
 
   runApp(
@@ -71,8 +65,7 @@ class MyApp extends StatelessWidget {
         // SubmitAnalysisScreen exige injeção — não pode ser const
         '/submitanalysis': (context) => SubmitAnalysisScreen(
           locationService: LocationService(),
-          imageStorageService: SupabaseImageStorageService(
-            Supabase.instance.client,
+          imageStorageService: PleskImageStorageService(
           ),
         ),
 

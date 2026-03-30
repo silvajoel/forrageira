@@ -3,6 +3,7 @@ import 'package:forrageira/models/analysis_request.dart';
 import 'package:forrageira/screens/analysis_detail_screen.dart';
 import 'package:forrageira/screens/analysis_screen.dart';
 import 'package:forrageira/screens/main_screen.dart';
+import 'package:forrageira/screens/notifications_screen.dart';
 import 'package:forrageira/services/auth_service.dart';
 import 'package:forrageira/services/i_forage_service.dart';
 import 'package:provider/provider.dart';
@@ -27,13 +28,13 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final authService = context.watch<AuthService>();
+    final theme        = Theme.of(context);
+    final authService  = context.watch<AuthService>();
     final forageService = context.read<IForageService>();
 
-    final user = authService.currentUser;
+    final user     = authService.currentUser;
     final username = user?.displayName ?? "Usuário";
-    final userId = user?.uid ?? '';
+    final userId   = user?.uid ?? '';
 
     return Scaffold(
       appBar: AppBar(
@@ -44,10 +45,14 @@ class HomeScreen extends StatelessWidget {
             Text('Forrageiras'),
           ],
         ),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Icon(Icons.notifications_none),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none),
+            onPressed: () {
+              final mainScreen =
+              context.findAncestorStateOfType<MainScreenState>();
+              mainScreen?.openNotifications();
+            },
           ),
         ],
       ),
@@ -55,7 +60,7 @@ class HomeScreen extends StatelessWidget {
         child: CustomScrollView(
           slivers: [
 
-            /// Header
+            // Header
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -63,7 +68,7 @@ class HomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
 
-                    /// Card de boas-vindas
+                    // Card de boas-vindas
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -98,7 +103,7 @@ class HomeScreen extends StatelessWidget {
 
                     const SizedBox(height: 24),
 
-                    /// Título da lista
+                    // Título da lista
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -125,7 +130,7 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
 
-            /// Lista tipada com Freezed — sem Map<String, dynamic>
+            // Lista de análises recentes
             StreamBuilder<List<AnalysisRequest>>(
               stream: forageService.watchUserForages(userId),
               builder: (context, snapshot) {
@@ -162,12 +167,15 @@ class HomeScreen extends StatelessWidget {
                             title: item.name,
                             date: _formatDate(item.createdAt),
                             status: _statusLabel(item.status),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => AnalysisDetailScreen(analysis: item),
-                              ),
-                            ),
+                            // Primeira imagem como capa
+                            coverImageUrl: item.imageUrls.isNotEmpty
+                                ? item.imageUrls.first
+                                : null,
+                            onTap: () {
+                              final mainScreen =
+                              context.findAncestorStateOfType<MainScreenState>();
+                              mainScreen?.openAnalysisDetail(item);
+                            },
                           ),
                         );
                       },
