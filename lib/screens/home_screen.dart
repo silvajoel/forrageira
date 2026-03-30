@@ -1,27 +1,26 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:forrageira/models/analysis_request.dart';
+import 'package:forrageira/screens/analysis_detail_screen.dart';
 import 'package:forrageira/screens/analysis_screen.dart';
+import 'package:forrageira/screens/main_screen.dart';
 import 'package:forrageira/services/auth_service.dart';
-import 'package:forrageira/services/forage_service.dart';
+import 'package:forrageira/services/i_forage_service.dart';
 import 'package:provider/provider.dart';
 import '../widgets/analysis_item.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
-  String getStatus(String status) {
+  String _statusLabel(String status) {
     switch (status) {
-      case 'pending':
-        return 'Em análise';
-      case 'completed':
-        return 'Finalizado';
-      default:
-        return 'Desconhecido';
+      case 'pending':   return 'Em análise';
+      case 'completed': return 'Finalizado';
+      default:          return 'Desconhecido';
     }
   }
 
-  String formatDate(Timestamp timestamp) {
-    final date = timestamp.toDate();
+  String _formatDate(DateTime? date) {
+    if (date == null) return '';
     return "${date.hour}:${date.minute.toString().padLeft(2, '0')} "
         "${date.day}/${date.month}/${date.year}";
   }
@@ -30,10 +29,11 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final authService = context.watch<AuthService>();
-    final forageService = context.read<ForageService>();
+    final forageService = context.read<IForageService>();
 
     final user = authService.currentUser;
     final username = user?.displayName ?? "Usuário";
+    final userId = user?.uid ?? '';
 
     return Scaffold(
       appBar: AppBar(
@@ -110,15 +110,12 @@ class HomeScreen extends StatelessWidget {
                         ),
                         TextButton(
                           onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AnalysisScreen(),
-                              ),
-                            );
+                            final mainScreen =
+                            context.findAncestorStateOfType<MainScreenState>();
+                            mainScreen?.setIndex(1);
                           },
                           child: const Text("Ver todas"),
-                        )
+                        ),
                       ],
                     ),
 
@@ -128,9 +125,9 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
 
-            /// Lista de análises
-            StreamBuilder<QuerySnapshot>(
-              stream: forageService.connectStreamForages(),
+            /// Lista tipada com Freezed — sem Map<String, dynamic>
+            StreamBuilder<List<AnalysisRequest>>(
+              stream: forageService.watchUserForages(userId),
               builder: (context, snapshot) {
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -139,7 +136,9 @@ class HomeScreen extends StatelessWidget {
                   );
                 }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                final items = snapshot.data ?? [];
+
+                if (items.isEmpty) {
                   return const SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.all(20),
@@ -150,44 +149,36 @@ class HomeScreen extends StatelessWidget {
                   );
                 }
 
-                final docs = snapshot.data!.docs;
-
                 return SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                           (context, index) {
-
-                        final data =
-                        docs[index].data() as Map<String, dynamic>;
-
-                        final name = data['name'] ?? 'Sem nome';
-                        final status = getStatus(data['status'] ?? '');
-                        final timestamp = data['created_at'];
-
-                        final date = timestamp != null
-                            ? formatDate(timestamp)
-                            : '';
+                        final item = items[index];
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: AnalysisItem(
-                            title: name,
-                            date: date,
-                            status: status,
+                            title: item.name,
+                            date: _formatDate(item.createdAt),
+                            status: _statusLabel(item.status),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => AnalysisDetailScreen(analysis: item),
+                              ),
+                            ),
                           ),
                         );
                       },
-                      childCount: docs.length,
+                      childCount: items.length,
                     ),
                   ),
                 );
               },
             ),
 
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 30),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
           ],
         ),
       ),

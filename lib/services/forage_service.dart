@@ -1,11 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:forrageira/models/analysis_request.dart';
+import 'i_forage_service.dart';
 
-class ForageService extends ChangeNotifier {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final User? user = FirebaseAuth.instance.currentUser;
+class ForageService extends ChangeNotifier implements IForageService {
+  final FirebaseFirestore _firestore;
 
+  ForageService({FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
+
+  @override
   Future<void> createAnalysisRequest({
     required String name,
     required String notes,
@@ -26,19 +30,27 @@ class ForageService extends ChangeNotifier {
     });
   }
 
-  Stream<QuerySnapshot> connectStreamForages() {
+  @override
+  Stream<List<AnalysisRequest>> watchUserForages(String userId, {int limit = 3}) {
     return _firestore
         .collection('analysis_requests')
-        .where('user_id', isEqualTo: user!.uid)
-        .limit(3)
-        .snapshots();
+        .where('user_id', isEqualTo: userId)
+        .limit(limit)
+        .snapshots()
+        .map((snap) => snap.docs
+        .map(AnalysisRequestFirestore.fromFirestore)
+        .toList());
   }
 
-  Stream<QuerySnapshot> connectStreamAllForages() {
+  @override
+  Stream<List<AnalysisRequest>> watchAllUserForages(String userId, {int limit = 20}) {
     return _firestore
         .collection('analysis_requests')
-        .where('user_id', isEqualTo: user!.uid)
-        .limit(20)
-        .snapshots();
+        .where('user_id', isEqualTo: userId)
+        .limit(limit)
+        .snapshots()
+        .map((snap) => snap.docs
+        .map(AnalysisRequestFirestore.fromFirestore)
+        .toList());
   }
 }

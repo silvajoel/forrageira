@@ -1,36 +1,42 @@
 import 'package:flutter/material.dart';
-import 'package:forrageira/services/forage_service.dart';
 import 'package:provider/provider.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../widgets/app_text_field.dart';
-import '../widgets/new_analysis_card.dart';
-
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
+import '../services/i_forage_service.dart';
+import '../services/i_image_storage_service.dart';
+import '../services/i_location_service.dart';
+import '../widgets/app_text_field.dart';
+import '../widgets/new_analysis_card.dart';
+
+// DIP: a screen recebe abstrações — não sabe nada sobre Supabase/Geolocator
 class SubmitAnalysisScreen extends StatefulWidget {
-  const SubmitAnalysisScreen({Key? key}) : super(key: key);
+  final ILocationService locationService;
+  final IImageStorageService imageStorageService;
+
+  const SubmitAnalysisScreen({
+    Key? key,
+    required this.locationService,
+    required this.imageStorageService,
+  }) : super(key: key);
 
   @override
   State<SubmitAnalysisScreen> createState() => _SubmitAnalysisScreenState();
 }
 
 class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
+  static const int _minImages = 5;
 
   final _formKey = GlobalKey<FormState>();
-  final user = FirebaseAuth.instance.currentUser;
-
   final _nameController = TextEditingController();
   final _notesController = TextEditingController();
+  final _picker = ImagePicker();
 
-  final ImagePicker picker = ImagePicker();
+  final List<File> _selectedImages = [];
+  bool _isUploading = false;
 
-  List<File> selectedImages = [];
-
-  bool isUploading = false;
+  String? get _userId => FirebaseAuth.instance.currentUser?.uid;
 
   @override
   void dispose() {
@@ -39,306 +45,183 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     super.dispose();
   }
 
-  /// LOCALIZAÇÃO
-  Future<Position> _getLocation() async {
+  // --- Imagens ---
 
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      throw Exception("GPS desativado");
-    }
-
-    permission = await Geolocator.checkPermission();
-
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      throw Exception("Permissão de localização negada");
-    }
-
-    return await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-  }
-
-  /// GALERIA
-  Future<void> pickImages() async {
-
-    final List<XFile> images = await picker.pickMultiImage();
-
+  Future<void> _pickFromGallery() async {
+    final images = await _picker.pickMultiImage();
     if (images.isNotEmpty) {
-      setState(() {
-        selectedImages.addAll(images.map((e) => File(e.path)));
-      });
+      setState(() => _selectedImages.addAll(images.map((e) => File(e.path))));
     }
   }
 
-  /// CÂMERA
-  Future<void> takePhoto() async {
-
-    final XFile? photo = await picker.pickImage(
+  Future<void> _takePhoto() async {
+    final photo = await _picker.pickImage(
       source: ImageSource.camera,
       imageQuality: 85,
     );
-
     if (photo != null) {
-      setState(() {
-        selectedImages.add(File(photo.path));
-      });
+      setState(() => _selectedImages.add(File(photo.path)));
     }
   }
 
-  /// REMOVER IMAGEM
-  void removeImage(int index) {
-    setState(() {
-      selectedImages.removeAt(index);
-    });
-  }
+  void _removeImage(int index) =>
+      setState(() => _selectedImages.removeAt(index));
 
-  /// UPLOAD PARA SUPABASE
-  Future<List<String>> uploadImages() async {
+  // --- Submit ---
 
-    final supabase = Supabase.instance.client;
-
-    List<String> imageUrls = [];
-
-    for (var image in selectedImages) {
-
-      final fileName = DateTime.now().millisecondsSinceEpoch.toString();
-
-      final path = "images/${user!.uid}/$fileName.jpg";
-
-      await supabase.storage
-          .from('forrageiras')
-          .upload(path, image);
-
-      final url = supabase.storage
-          .from('forrageiras')
-          .getPublicUrl(path);
-
-      imageUrls.add(url);
-    }
-
-    return imageUrls;
-  }
-
-  /// ENVIO DO FORMULÁRIO
   Future<void> _submitForm() async {
-
     if (!_formKey.currentState!.validate()) return;
 
-    if (selectedImages.length < 5) {
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Envie no mínimo 5 imagens da forrageira."),
-        ),
-      );
-
+    if (_selectedImages.length < _minImages) {
+      _showSnack("Envie no mínimo $_minImages imagens da forrageira.");
       return;
     }
 
-    setState(() {
-      isUploading = true;
-    });
+    final uid = _userId;
+    if (uid == null) {
+      _showSnack("Usuário não autenticado.");
+      return;
+    }
 
-    final forageService = Provider.of<ForageService>(context, listen: false);
+    setState(() => _isUploading = true);
+
+    // ForageService vem do Provider (continua como ChangeNotifier)
+    final forageService = context.read<IForageService>();
 
     try {
-
-      Position position = await _getLocation();
-
-      List<String> imageUrls = await uploadImages();
+      final location = await widget.locationService.getCurrentLocation();
+      final imageUrls = await widget.imageStorageService
+          .uploadImages(_selectedImages, uid);
 
       await forageService.createAnalysisRequest(
         name: _nameController.text.trim(),
         notes: _notesController.text.trim(),
-        latitude: position.latitude,
-        longitude: position.longitude,
+        latitude: location.latitude,
+        longitude: location.longitude,
         imageUrls: imageUrls,
-        userId: user!.uid,
+        userId: uid,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Forrageira enviada com sucesso!"),
-        ),
-      );
-
-      Navigator.pushReplacementNamed(context, '/home');
-
+      _showSnack("Forrageira enviada com sucesso!");
+      if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Erro ao enviar: $e"),
-        ),
-      );
-
+      _showSnack("Erro ao enviar: $e");
     } finally {
-
-      setState(() {
-        isUploading = false;
-      });
-
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // --- Build ---
+
   @override
   Widget build(BuildContext context) {
-
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
-          children: [
-            Icon(Icons.grass),
-            SizedBox(width: 8),
-            Text('Enviar Forrageira'),
-          ],
-        ),
+        title: const Row(children: [
+          Icon(Icons.grass),
+          SizedBox(width: 8),
+          Text('Enviar Forrageira'),
+        ]),
       ),
-
       body: SafeArea(
         child: SingleChildScrollView(
-
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-
-            child: Form(
-              key: _formKey,
-
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-
-                children: [
-
-                  Text(
-                    "Envie suas Forrageiras",
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Envie suas Forrageiras",
+                  style: theme.textTheme.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 24),
+                AppTextField(
+                  controller: _nameController,
+                  label: "Nome da Forrageira",
+                  icon: Icons.grass,
+                  validator: (v) =>
+                  (v == null || v.isEmpty) ? "Informe o nome" : null,
+                ),
+                const SizedBox(height: 16),
+                AppTextField(
+                  controller: _notesController,
+                  label: "Observações",
+                  icon: Icons.note_alt_outlined,
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 24),
+                const NewAnalysisCard(),
+                const SizedBox(height: 24),
+                Row(children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _takePhoto,
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text("Câmera"),
                     ),
                   ),
-
-                  const SizedBox(height: 24),
-
-                  AppTextField(
-                    controller: _nameController,
-                    label: "Nome da Forrageira",
-                    icon: Icons.grass,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "Informe o nome";
-                      }
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  AppTextField(
-                    controller: _notesController,
-                    label: "Observações",
-                    icon: Icons.note_alt_outlined,
-                    maxLines: 3,
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  const NewAnalysisCard(),
-
-                  const SizedBox(height: 24),
-
-                  /// BOTÕES
-                  Row(
-                    children: [
-
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: takePhoto,
-                          icon: const Icon(Icons.camera_alt),
-                          label: const Text("Câmera"),
-                        ),
-                      ),
-
-                      const SizedBox(width: 10),
-
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: pickImages,
-                          icon: const Icon(Icons.photo_library),
-                          label: const Text("Galeria"),
-                        ),
-                      ),
-
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  /// PREVIEW
-                  if (selectedImages.isNotEmpty)
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: selectedImages.length,
-                      gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                      ),
-                      itemBuilder: (context, index) {
-
-                        return GestureDetector(
-                          onTap: () => removeImage(index),
-                          child: Stack(
-                            children: [
-
-                              Positioned.fill(
-                                child: Image.file(
-                                  selectedImages[index],
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-
-                              const Positioned(
-                                right: 4,
-                                top: 4,
-                                child: Icon(
-                                  Icons.cancel,
-                                  color: Colors.white,
-                                ),
-                              ),
-
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-
-                  const SizedBox(height: 24),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: isUploading ? null : _submitForm,
-                      child: isUploading
-                          ? const CircularProgressIndicator()
-                          : const Text("Enviar"),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _pickFromGallery,
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text("Galeria"),
                     ),
                   ),
-
-                  const SizedBox(height: 40),
-                ],
-              ),
+                ]),
+                const SizedBox(height: 16),
+                if (_selectedImages.isNotEmpty) _buildImageGrid(),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isUploading ? null : _submitForm,
+                    child: _isUploading
+                        ? const CircularProgressIndicator()
+                        : const Text("Enviar"),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _selectedImages.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemBuilder: (_, index) => GestureDetector(
+        onTap: () => _removeImage(index),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Image.file(_selectedImages[index], fit: BoxFit.cover),
+            ),
+            const Positioned(
+              right: 4,
+              top: 4,
+              child: Icon(Icons.cancel, color: Colors.white),
+            ),
+          ],
         ),
       ),
     );
