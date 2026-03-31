@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AdminSidebar extends StatelessWidget {
   final String selected;
@@ -50,7 +51,16 @@ class AdminSidebar extends StatelessWidget {
 
   Widget _logout(BuildContext context) {
     return InkWell(
-      onTap: () => Navigator.pushReplacementNamed(context, '/admin-login'),
+      onTap: () async {
+        await FirebaseAuth.instance.signOut();
+
+        if (context.mounted) {
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/admin-login',
+                (route) => false,
+          );
+        }
+      },
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         child: Row(

@@ -32,13 +32,39 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception("Falha no login.");
       }
 
-      // 🔥 Busca perfil no Firestore
       final profile = await _userService.getProfile(user.uid);
-      final role = profile?['role'] ?? 'user';
 
       if (!mounted) return;
 
-      // 🚫 Se for admin, bloqueia login no app
+      if (profile == null) {
+        await _auth.logout();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Seu cadastro não foi encontrado no sistema."),
+          ),
+        );
+
+        setState(() => loading = false);
+        return;
+      }
+
+      final role = (profile['role'] ?? 'user').toString().toLowerCase();
+      final active = profile['active'] == true;
+
+      if (!active) {
+        await _auth.logout();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Sua conta está inativa. Procure o administrador."),
+          ),
+        );
+
+        setState(() => loading = false);
+        return;
+      }
+
       if (role == 'admin') {
         await _auth.logout();
 
@@ -52,13 +78,11 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // ✅ Usuário normal entra no app
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Login realizado!")),
       );
 
       Navigator.pushReplacementNamed(context, '/home');
-
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
@@ -74,6 +98,9 @@ class _LoginScreenState extends State<LoginScreen> {
         case 'invalid-email':
           mensagem = "E-mail inválido.";
           break;
+        case 'invalid-credential':
+          mensagem = "E-mail ou senha incorretos.";
+          break;
         default:
           mensagem = "Erro de autenticação.";
       }
@@ -81,7 +108,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(mensagem)),
       );
-
     } catch (e) {
       if (!mounted) return;
 
