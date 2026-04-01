@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:forrageira/services/forage_service.dart';
 import 'package:forrageira/services/i_forage_service.dart';
 import 'package:forrageira/services/location_service.dart';
+import 'package:forrageira/services/notification_service.dart';
 import 'package:forrageira/services/plesk_image_storage_service.dart';
 import 'package:forrageira/widgets/auth_check.dart';
 import 'package:provider/provider.dart';
@@ -27,18 +28,23 @@ import 'screens/admin/admin_species_page.dart';
 import 'screens/admin/admin_settings_page.dart';
 
 void main() async {
+  // 1. Garante a inicialização dos bindings do Flutter
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // 3. Inicializa as Notificações e Timezone ANTES de rodar o app
+  final notificationService = NotificationService();
+  await notificationService.init();
+
   runApp(
     MultiProvider(
       providers: [
+        // Passamos a instância já inicializada
+        Provider<NotificationService>.value(value: notificationService),
         ChangeNotifierProvider(create: (_) => AuthService()),
-
-        // DIP: registrado pela abstração — screens dependem de IForageService
         ChangeNotifierProvider<IForageService>(
           create: (_) => ForageService(),
         ),

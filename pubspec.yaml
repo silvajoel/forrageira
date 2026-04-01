@@ -6,41 +6,38 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.10.0-180.0.dev
+  sdk: ^3.5.0
 
 dependencies:
-
-  intl: ^0.19.0
-
   flutter:
     sdk: flutter
 
+  intl: ^0.20.2
+
   flutter_native_splash: ^2.4.7
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^1.0.9
 
   # Firebase
-  firebase_core: ^2.30.0
-  firebase_auth: ^4.17.0
-  cloud_firestore: ^4.17.0
-  firebase_storage: ^11.7.0
+  firebase_core: ^4.6.0
+  firebase_auth: ^6.3.0
+  cloud_firestore: ^6.2.0
+  firebase_storage: ^13.2.0
 
-  #Geolocation
-  geolocator: ^11.0.0
+  # Geolocation
+  geolocator: ^14.0.2
 
-  #Supabase
-  supabase_flutter: ^2.5.6
-
-  #Image Picker
+  # Image Picker
   image_picker: ^1.1.2
 
   # State management
   provider: ^6.0.0
-  freezed_annotation: ^2.4.1
+  freezed_annotation: ^3.1.0
   json_annotation: ^4.8.0
   http: ^1.2.0
 
+  # Notifications & timezone
   timezone: ^0.11.0
-  flutter_native_timezone: ^2.0.0
+  flutter_timezone: ^5.0.2
   flutter_local_notifications: ^21.0.0
 
 dev_dependencies:
@@ -49,16 +46,15 @@ dev_dependencies:
 
   flutter_lints: ^6.0.0
   build_runner: ^2.4.9
-  freezed: ^2.5.2
+  freezed: ^3.2.5
   json_serializable: ^6.7.1
 
 flutter_native_splash:
   color: "#FFFFFF"
-  image:                assets/images  #/logo.png
+  image: assets/images/logo.png
   fullscreen: true
 
 flutter:
-
   assets:
     - assets/images/grass.jpg
 
