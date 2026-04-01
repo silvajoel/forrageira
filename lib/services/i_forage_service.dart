@@ -13,4 +13,5 @@ abstract class IForageService extends ChangeNotifier {
 
   Stream<List<AnalysisRequest>> watchUserForages(String userId, {int limit = 3});
   Stream<List<AnalysisRequest>> watchAllUserForages(String userId, {int limit = 20});
+  Future<AnalysisRequest> getById(String id);
 }

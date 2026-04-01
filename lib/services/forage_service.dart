@@ -53,4 +53,18 @@ class ForageService extends ChangeNotifier implements IForageService {
         .map(AnalysisRequestFirestore.fromFirestore)
         .toList());
   }
+
+  @override
+  Future<AnalysisRequest> getById(String id) async {
+    final doc = await _firestore
+        .collection('analysis_requests')
+        .doc(id)
+        .get();
+
+    if (!doc.exists) {
+      throw Exception('Análise não encontrada');
+    }
+
+    return AnalysisRequestFirestore.fromFirestore(doc);
+  }
 }

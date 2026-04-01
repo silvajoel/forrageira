@@ -15,6 +15,7 @@ import 'package:forrageira/screens/main_screen.dart';
 import 'package:forrageira/services/auth_service.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
+import 'services/navigation_service.dart';
 
 import 'screens/admin/admin_login_page.dart';
 import 'screens/admin/admin_dashboard_page.dart';
@@ -53,6 +54,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Forrageira',
       theme: appTheme,
