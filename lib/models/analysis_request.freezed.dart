@@ -49,9 +49,9 @@ mixin _$AnalysisRequest {
 /// @nodoc
 abstract class $AnalysisRequestCopyWith<$Res> {
   factory $AnalysisRequestCopyWith(
-    AnalysisRequest value,
-    $Res Function(AnalysisRequest) then,
-  ) = _$AnalysisRequestCopyWithImpl<$Res, AnalysisRequest>;
+      AnalysisRequest value,
+      $Res Function(AnalysisRequest) then,
+      ) = _$AnalysisRequestCopyWithImpl<$Res, AnalysisRequest>;
   @useResult
   $Res call({
     String id,
@@ -101,60 +101,60 @@ class _$AnalysisRequestCopyWithImpl<$Res, $Val extends AnalysisRequest>
   }) {
     return _then(
       _value.copyWith(
-            id: null == id
-                ? _value.id
-                : id // ignore: cast_nullable_to_non_nullable
-                      as String,
-            name: null == name
-                ? _value.name
-                : name // ignore: cast_nullable_to_non_nullable
-                      as String,
-            notes: null == notes
-                ? _value.notes
-                : notes // ignore: cast_nullable_to_non_nullable
-                      as String,
-            userId: null == userId
-                ? _value.userId
-                : userId // ignore: cast_nullable_to_non_nullable
-                      as String,
-            latitude: null == latitude
-                ? _value.latitude
-                : latitude // ignore: cast_nullable_to_non_nullable
-                      as double,
-            longitude: null == longitude
-                ? _value.longitude
-                : longitude // ignore: cast_nullable_to_non_nullable
-                      as double,
-            status: null == status
-                ? _value.status
-                : status // ignore: cast_nullable_to_non_nullable
-                      as String,
-            imageUrls: null == imageUrls
-                ? _value.imageUrls
-                : imageUrls // ignore: cast_nullable_to_non_nullable
-                      as List<String>,
-            createdAt: freezed == createdAt
-                ? _value.createdAt
-                : createdAt // ignore: cast_nullable_to_non_nullable
-                      as DateTime?,
-            speciesName: freezed == speciesName
-                ? _value.speciesName
-                : speciesName // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            careInstructions: freezed == careInstructions
-                ? _value.careInstructions
-                : careInstructions // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            adminNotes: freezed == adminNotes
-                ? _value.adminNotes
-                : adminNotes // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            reviewedAt: freezed == reviewedAt
-                ? _value.reviewedAt
-                : reviewedAt // ignore: cast_nullable_to_non_nullable
-                      as DateTime?,
-          )
-          as $Val,
+        id: null == id
+            ? _value.id
+            : id // ignore: cast_nullable_to_non_nullable
+        as String,
+        name: null == name
+            ? _value.name
+            : name // ignore: cast_nullable_to_non_nullable
+        as String,
+        notes: null == notes
+            ? _value.notes
+            : notes // ignore: cast_nullable_to_non_nullable
+        as String,
+        userId: null == userId
+            ? _value.userId
+            : userId // ignore: cast_nullable_to_non_nullable
+        as String,
+        latitude: null == latitude
+            ? _value.latitude
+            : latitude // ignore: cast_nullable_to_non_nullable
+        as double,
+        longitude: null == longitude
+            ? _value.longitude
+            : longitude // ignore: cast_nullable_to_non_nullable
+        as double,
+        status: null == status
+            ? _value.status
+            : status // ignore: cast_nullable_to_non_nullable
+        as String,
+        imageUrls: null == imageUrls
+            ? _value.imageUrls
+            : imageUrls // ignore: cast_nullable_to_non_nullable
+        as List<String>,
+        createdAt: freezed == createdAt
+            ? _value.createdAt
+            : createdAt // ignore: cast_nullable_to_non_nullable
+        as DateTime?,
+        speciesName: freezed == speciesName
+            ? _value.speciesName
+            : speciesName // ignore: cast_nullable_to_non_nullable
+        as String?,
+        careInstructions: freezed == careInstructions
+            ? _value.careInstructions
+            : careInstructions // ignore: cast_nullable_to_non_nullable
+        as String?,
+        adminNotes: freezed == adminNotes
+            ? _value.adminNotes
+            : adminNotes // ignore: cast_nullable_to_non_nullable
+        as String?,
+        reviewedAt: freezed == reviewedAt
+            ? _value.reviewedAt
+            : reviewedAt // ignore: cast_nullable_to_non_nullable
+        as DateTime?,
+      )
+      as $Val,
     );
   }
 }
@@ -163,9 +163,9 @@ class _$AnalysisRequestCopyWithImpl<$Res, $Val extends AnalysisRequest>
 abstract class _$$AnalysisRequestImplCopyWith<$Res>
     implements $AnalysisRequestCopyWith<$Res> {
   factory _$$AnalysisRequestImplCopyWith(
-    _$AnalysisRequestImpl value,
-    $Res Function(_$AnalysisRequestImpl) then,
-  ) = __$$AnalysisRequestImplCopyWithImpl<$Res>;
+      _$AnalysisRequestImpl value,
+      $Res Function(_$AnalysisRequestImpl) then,
+      ) = __$$AnalysisRequestImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({
@@ -190,9 +190,9 @@ class __$$AnalysisRequestImplCopyWithImpl<$Res>
     extends _$AnalysisRequestCopyWithImpl<$Res, _$AnalysisRequestImpl>
     implements _$$AnalysisRequestImplCopyWith<$Res> {
   __$$AnalysisRequestImplCopyWithImpl(
-    _$AnalysisRequestImpl _value,
-    $Res Function(_$AnalysisRequestImpl) _then,
-  ) : super(_value, _then);
+      _$AnalysisRequestImpl _value,
+      $Res Function(_$AnalysisRequestImpl) _then,
+      ) : super(_value, _then);
 
   /// Create a copy of AnalysisRequest
   /// with the given fields replaced by the non-null parameter values.
@@ -218,55 +218,55 @@ class __$$AnalysisRequestImplCopyWithImpl<$Res>
         id: null == id
             ? _value.id
             : id // ignore: cast_nullable_to_non_nullable
-                  as String,
+        as String,
         name: null == name
             ? _value.name
             : name // ignore: cast_nullable_to_non_nullable
-                  as String,
+        as String,
         notes: null == notes
             ? _value.notes
             : notes // ignore: cast_nullable_to_non_nullable
-                  as String,
+        as String,
         userId: null == userId
             ? _value.userId
             : userId // ignore: cast_nullable_to_non_nullable
-                  as String,
+        as String,
         latitude: null == latitude
             ? _value.latitude
             : latitude // ignore: cast_nullable_to_non_nullable
-                  as double,
+        as double,
         longitude: null == longitude
             ? _value.longitude
             : longitude // ignore: cast_nullable_to_non_nullable
-                  as double,
+        as double,
         status: null == status
             ? _value.status
             : status // ignore: cast_nullable_to_non_nullable
-                  as String,
+        as String,
         imageUrls: null == imageUrls
             ? _value._imageUrls
             : imageUrls // ignore: cast_nullable_to_non_nullable
-                  as List<String>,
+        as List<String>,
         createdAt: freezed == createdAt
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
-                  as DateTime?,
+        as DateTime?,
         speciesName: freezed == speciesName
             ? _value.speciesName
             : speciesName // ignore: cast_nullable_to_non_nullable
-                  as String?,
+        as String?,
         careInstructions: freezed == careInstructions
             ? _value.careInstructions
             : careInstructions // ignore: cast_nullable_to_non_nullable
-                  as String?,
+        as String?,
         adminNotes: freezed == adminNotes
             ? _value.adminNotes
             : adminNotes // ignore: cast_nullable_to_non_nullable
-                  as String?,
+        as String?,
         reviewedAt: freezed == reviewedAt
             ? _value.reviewedAt
             : reviewedAt // ignore: cast_nullable_to_non_nullable
-                  as DateTime?,
+        as DateTime?,
       ),
     );
   }
@@ -418,7 +418,7 @@ abstract class _AnalysisRequest implements AnalysisRequest {
   }) = _$AnalysisRequestImpl;
 
   factory _AnalysisRequest.fromJson(Map<String, dynamic> json) =
-      _$AnalysisRequestImpl.fromJson;
+  _$AnalysisRequestImpl.fromJson;
 
   @override
   String get id;

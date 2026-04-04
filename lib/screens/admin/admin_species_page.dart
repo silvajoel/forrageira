@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../data/admin_store.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:forrageira/services/audit_log_service.dart';
 import '../../widgets/admin/admin_shell.dart';
 
 class AdminSpeciesPage extends StatefulWidget {
@@ -10,21 +11,8 @@ class AdminSpeciesPage extends StatefulWidget {
 }
 
 class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
-  final store = AdminStore.instance;
-
-  @override
-  void initState() {
-    super.initState();
-    store.addListener(_onChange);
-  }
-
-  @override
-  void dispose() {
-    store.removeListener(_onChange);
-    super.dispose();
-  }
-
-  void _onChange() => setState(() {});
+  final _species = FirebaseFirestore.instance.collection('species');
+  final _audit = AuditLogService();
 
   @override
   Widget build(BuildContext context) {
@@ -49,36 +37,53 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
             ],
           ),
           const SizedBox(height: 12),
-
           _card(
             title: 'Espécies cadastradas',
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Nome')),
-                  DataColumn(label: Text('Descrição')),
-                  DataColumn(label: Text('Ações')),
-                ],
-                rows: store.species.map((s) {
-                  return DataRow(cells: [
-                    DataCell(Text(s.nome)),
-                    DataCell(SizedBox(width: 420, child: Text(s.descricao, maxLines: 2, overflow: TextOverflow.ellipsis))),
-                    DataCell(Row(
-                      children: [
-                        TextButton(
-                          onPressed: () => _openSpeciesDialog(editId: s.id, nome: s.nome, descricao: s.descricao),
-                          child: const Text('Editar'),
-                        ),
-                        TextButton(
-                          onPressed: () => store.deleteSpecies(s.id),
-                          child: const Text('Excluir'),
-                        ),
-                      ],
-                    )),
-                  ]);
-                }).toList(),
-              ),
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _species.orderBy('name').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final docs = snapshot.data?.docs ?? [];
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columns: const [
+                      DataColumn(label: Text('Nome')),
+                      DataColumn(label: Text('Descrição')),
+                      DataColumn(label: Text('Ações')),
+                    ],
+                    rows: docs.map((d) {
+                      final name = (d.data()['name'] ?? '').toString();
+                      final description = (d.data()['description'] ?? '').toString();
+                      return DataRow(cells: [
+                        DataCell(Text(name)),
+                        DataCell(SizedBox(width: 420, child: Text(description, maxLines: 2, overflow: TextOverflow.ellipsis))),
+                        DataCell(Row(
+                          children: [
+                            TextButton(
+                              onPressed: () => _openSpeciesDialog(editId: d.id, nome: name, descricao: description),
+                              child: const Text('Editar'),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                await _species.doc(d.id).delete();
+                                await _audit.log(
+                                  action: 'Excluiu especie',
+                                  targetId: d.id,
+                                  metadata: {'name': name},
+                                );
+                              },
+                              child: const Text('Excluir'),
+                            ),
+                          ],
+                        )),
+                      ]);
+                    }).toList(),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -112,17 +117,26 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final n = nomeCtrl.text.trim();
               final d = descCtrl.text.trim();
               if (n.isEmpty || d.isEmpty) return;
 
               if (editId == null) {
-                store.addSpecies(n, d);
+                await _species.add({
+                  'name': n,
+                  'description': d,
+                  'created_at': FieldValue.serverTimestamp(),
+                });
+                await _audit.log(action: 'Cadastrou especie', metadata: {'name': n});
               } else {
-                store.updateSpecies(editId, nome: n, descricao: d);
+                await _species.doc(editId).update({
+                  'name': n,
+                  'description': d,
+                });
+                await _audit.log(action: 'Editou especie', targetId: editId, metadata: {'name': n});
               }
-              Navigator.pop(context);
+              if (context.mounted) Navigator.pop(context);
             },
             child: const Text('Salvar'),
           ),

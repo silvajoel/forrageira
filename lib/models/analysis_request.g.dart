@@ -7,8 +7,8 @@ part of 'analysis_request.dart';
 // **************************************************************************
 
 _$AnalysisRequestImpl _$$AnalysisRequestImplFromJson(
-  Map<String, dynamic> json,
-) => _$AnalysisRequestImpl(
+    Map<String, dynamic> json,
+    ) => _$AnalysisRequestImpl(
   id: json['id'] as String,
   name: json['name'] as String,
   notes: json['notes'] as String,
@@ -17,7 +17,7 @@ _$AnalysisRequestImpl _$$AnalysisRequestImplFromJson(
   longitude: (json['longitude'] as num).toDouble(),
   status: json['status'] as String,
   imageUrls:
-      (json['imageUrls'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+  (json['imageUrls'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const [],
   createdAt: json['createdAt'] == null
       ? null
@@ -31,8 +31,8 @@ _$AnalysisRequestImpl _$$AnalysisRequestImplFromJson(
 );
 
 Map<String, dynamic> _$$AnalysisRequestImplToJson(
-  _$AnalysisRequestImpl instance,
-) => <String, dynamic>{
+    _$AnalysisRequestImpl instance,
+    ) => <String, dynamic>{
   'id': instance.id,
   'name': instance.name,
   'notes': instance.notes,

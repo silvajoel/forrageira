@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:forrageira/services/audit_log_service.dart';
 
+import '../../services/user_service.dart';
 import '../../widgets/admin/admin_shell.dart';
 
 class AdminClientsPage extends StatefulWidget {
@@ -16,6 +18,7 @@ class AdminClientsPage extends StatefulWidget {
 class _AdminClientsPageState extends State<AdminClientsPage> {
   final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
+  final _audit = AuditLogService();
 
   final TextEditingController _searchCtrl = TextEditingController();
 
@@ -35,10 +38,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _usersStream() {
-    return _db
-        .collection('users')
-        .orderBy('createdAt', descending: true)
-        .snapshots();
+    return _db.collection('users').snapshots();
   }
 
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _applyFilters(
@@ -112,6 +112,11 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
       await _db.collection('users').doc(userId).update({
         'role': 'admin',
       });
+      await _audit.log(
+        action: 'Promoveu usuario para admin',
+        targetId: userId,
+        metadata: {'name': name},
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -132,7 +137,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
   }
 
   Future<void> _toggleActive(String userId, Map<String, dynamic> userData) async {
-    final isActive = userData['active'] == true;
+    final isActive = UserService.isProfileActive(userData);
     final name = (userData['name'] ?? 'este usuário').toString();
 
     final confirmed = await showDialog<bool>(
@@ -174,6 +179,11 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
       await _db.collection('users').doc(userId).update({
         'active': !isActive,
       });
+      await _audit.log(
+        action: isActive ? 'Desativou usuario' : 'Ativou usuario',
+        targetId: userId,
+        metadata: {'name': name},
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -335,6 +345,11 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
       setState(() => _savingAction = true);
 
       await _db.collection('users').doc(userId).delete();
+      await _audit.log(
+        action: 'Excluiu usuario',
+        targetId: userId,
+        metadata: {'name': name},
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -566,7 +581,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
   Widget _actionsCell(String userId, Map<String, dynamic> user) {
     final role = (user['role'] ?? 'user').toString().toLowerCase();
     final isAdmin = role == 'admin';
-    final isActive = user['active'] == true;
+    final isActive = UserService.isProfileActive(user);
     final isSelf = _auth.currentUser?.uid == userId;
 
     return Wrap(
@@ -665,7 +680,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
             final name = (data['name'] ?? '-').toString();
             final email = (data['email'] ?? '-').toString();
             final role = (data['role'] ?? 'user').toString();
-            final active = data['active'] == true;
+            final active = UserService.isProfileActive(data);
 
             return DataRow(
               cells: [
@@ -728,6 +743,13 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
               }
 
               final docs = snapshot.data?.docs ?? [];
+              final sortedDocs = [...docs]..sort((a, b) {
+                  final aTs = UserService.userCreatedTimestamp(a.data());
+                  final bTs = UserService.userCreatedTimestamp(b.data());
+                  final aDate = aTs?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+                  final bDate = bTs?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+                  return bDate.compareTo(aDate);
+                });
 
               return ValueListenableBuilder<String>(
                 valueListenable: _searchNotifier,
@@ -736,7 +758,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
                     valueListenable: _roleFilterNotifier,
                     builder: (context, roleFilterValue, __) {
                       final filteredDocs = _applyFilters(
-                        docs,
+                        sortedDocs,
                         search: searchValue,
                         roleFilter: roleFilterValue,
                       );
