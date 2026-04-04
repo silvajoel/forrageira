@@ -1,3 +1,4 @@
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -5,7 +6,7 @@ part 'analysis_request.freezed.dart';
 part 'analysis_request.g.dart';
 
 @freezed
-class AnalysisRequest with _$AnalysisRequest {
+abstract class AnalysisRequest with _$AnalysisRequest {
   const factory AnalysisRequest({
     required String id,
     required String name,
@@ -30,19 +31,6 @@ class AnalysisRequest with _$AnalysisRequest {
 extension AnalysisRequestFirestore on AnalysisRequest {
   static AnalysisRequest fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    final dynamic rawImages = data['images'] ?? data['image_urls'] ?? data['imageUrls'];
-    final List<String> normalizedImages;
-    if (rawImages is List) {
-      normalizedImages = rawImages.map((e) => e.toString()).toList();
-    } else if (rawImages is String && rawImages.isNotEmpty) {
-      normalizedImages = rawImages
-          .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
-    } else {
-      normalizedImages = const [];
-    }
     return AnalysisRequest(
       id: doc.id,
       name: data['name'] ?? '',
@@ -51,7 +39,7 @@ extension AnalysisRequestFirestore on AnalysisRequest {
       latitude: (data['latitude'] ?? 0).toDouble(),
       longitude: (data['longitude'] ?? 0).toDouble(),
       status: data['status'] ?? 'pending',
-      imageUrls: normalizedImages,
+      imageUrls: List<String>.from(data['images'] ?? []),
       createdAt: (data['created_at'] as Timestamp?)?.toDate(),
       speciesName: data['species_name'],
       careInstructions: data['care_instructions'],

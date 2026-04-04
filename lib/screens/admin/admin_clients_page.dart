@@ -5,8 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:forrageira/services/audit_log_service.dart';
 
-import '../../services/user_service.dart';
-import '../../widgets/admin/admin_shell.dart';
 
 class AdminClientsPage extends StatefulWidget {
   const AdminClientsPage({super.key});
@@ -38,7 +36,10 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _usersStream() {
-    return _db.collection('users').snapshots();
+    return _db
+        .collection('users')
+        .orderBy('created_at', descending: true)
+        .snapshots();
   }
 
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _applyFilters(
@@ -721,9 +722,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return AdminShell(
-      selectedMenu: 'clientes',
-      child: ListView(
+    return ListView(
         padding: const EdgeInsets.all(24),
         children: [
           _buildHeader(),
@@ -810,7 +809,6 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
             },
           ),
         ],
-      ),
-    );
+      );
   }
 }

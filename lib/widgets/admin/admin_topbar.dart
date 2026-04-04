@@ -1,21 +1,52 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:forrageira/models/app_notification.dart';
-import 'package:forrageira/services/app_notification_service.dart';
-import 'package:forrageira/services/user_service.dart';
-import 'package:forrageira/widgets/notifications_modal.dart';
 
-class AdminTopBar extends StatelessWidget implements PreferredSizeWidget {
-  const AdminTopBar({super.key});
+import '../../services/user_service.dart';
+
+class AdminTopBar extends StatefulWidget implements PreferredSizeWidget {
+  final VoidCallback? onOpenSettings;
+
+  const AdminTopBar({
+    super.key,
+    this.onOpenSettings,
+  });
 
   @override
   Size get preferredSize => const Size.fromHeight(64);
 
   @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+  State<AdminTopBar> createState() => _AdminTopBarState();
+}
 
+class _AdminTopBarState extends State<AdminTopBar> {
+  final _auth = FirebaseAuth.instance;
+  final _userService = UserService();
+
+  String _nome = 'Admin';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileName();
+  }
+
+  Future<void> _loadProfileName() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final doc = await _userService.getProfile(user.uid);
+      if (!mounted) return;
+
+      setState(() {
+        _nome = (doc?['name'] ?? 'Admin').toString();
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return AppBar(
       backgroundColor: const Color(0xFF1F5B3F),
       elevation: 0,
@@ -30,44 +61,46 @@ class AdminTopBar extends StatelessWidget implements PreferredSizeWidget {
         ],
       ),
       actions: [
-        // Sino com contador de não lidas
-        if (user != null) _AdminNotificationBell(uid: user.uid),
-
-        if (user != null)
-          StreamBuilder(
-            stream: UserService().streamProfile(user.uid),
-            builder: (context, snapshot) {
-              String nome = 'Admin';
-              if (snapshot.hasData && snapshot.data!.exists) {
-                final data = snapshot.data!.data();
-                nome = data?['name'] ?? 'Admin';
-              }
-              return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: PopupMenuButton<String>(
-                  offset: const Offset(0, 50),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.person, color: Colors.white),
-                      const SizedBox(width: 6),
-                      Text(nome, style: const TextStyle(color: Colors.white)),
-                    ],
-                  ),
-                  onSelected: (value) async {
-                    if (value == 'logout') {
-                      await FirebaseAuth.instance.signOut();
-                      if (context.mounted) {
-                        Navigator.pushReplacementNamed(context, '/admin-login');
-                      }
-                    }
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(value: 'logout', child: Text('Sair')),
-                  ],
+        IconButton(
+          onPressed: () {},
+          icon: const Icon(Icons.notifications_none),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: PopupMenuButton<String>(
+            offset: const Offset(0, 50),
+            child: Row(
+              children: [
+                const Icon(Icons.person, color: Colors.white),
+                const SizedBox(width: 6),
+                Text(
+                  _nome,
+                  style: const TextStyle(color: Colors.white),
                 ),
-              );
+              ],
+            ),
+            onSelected: (value) async {
+              if (value == 'settings') {
+                widget.onOpenSettings?.call();
+              }
+              if (value == 'logout') {
+                await FirebaseAuth.instance.signOut();
+                if (!context.mounted) return;
+                Navigator.pushReplacementNamed(context, '/admin-login');
+              }
             },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'settings',
+                child: Text('Configurações'),
+              ),
+              PopupMenuItem(
+                value: 'logout',
+                child: Text('Sair'),
+              ),
+            ],
           ),
+        ),
       ],
     );
   }

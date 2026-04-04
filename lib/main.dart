@@ -32,6 +32,8 @@ import 'screens/admin/admin_clients_page.dart';
 import 'screens/admin/admin_history_page.dart';
 import 'screens/admin/admin_species_page.dart';
 import 'screens/admin/admin_settings_page.dart';
+import 'screens/admin/admin_home_page.dart';
+import 'screens/app_bootstrap_page.dart';
 
 /// 🔥 HANDLER GLOBAL (OBRIGATÓRIO)
 @pragma('vm:entry-point')
@@ -89,7 +91,10 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Forrageira',
       theme: appTheme,
-      home: AuthCheck(),
+
+      // Controle de autenticação
+      home: AppBootstrapPage(),
+
       routes: {
         '/home': (context) => const MainScreen(),
         '/register': (context) => const RegisterScreen(),
@@ -105,13 +110,13 @@ class MyApp extends StatelessWidget {
         '/profile': (context) => const ProfileScreen(),
 
         '/admin-login': (context) => const AdminLoginPage(),
-        '/admin': (context) => const AdminDashboardPage(),
+        '/admin': (context) => AdminHomePage(),
         '/admin/requests': (context) => const AdminRequestsPage(),
-        '/admin/request': (context) => const AdminRequestDetailPage(),
-        '/admin/clients': (context) => const AdminClientsPage(),
-        '/admin/history': (context) => const AdminHistoryPage(),
-        '/admin/species': (context) => const AdminSpeciesPage(),
-        '/admin/settings': (context) => const AdminSettingsPage(),
+        // '/admin/request': (context) => const AdminRequestDetailPage(),
+        // '/admin/clients': (context) => const AdminClientsPage(),
+        // '/admin/history': (context) => const AdminHistoryPage(),
+        // '/admin/species': (context) => const AdminSpeciesPage(),
+        // '/admin/settings': (context) => const AdminSettingsPage(),
       },
     );
   }
