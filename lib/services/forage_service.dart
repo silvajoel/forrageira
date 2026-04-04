@@ -38,6 +38,7 @@ class ForageService extends ChangeNotifier implements IForageService {
       'created_at': FieldValue.serverTimestamp(),
     });
 
+    // Notifica os admins sobre a nova análise
     try {
       await _notificationService.notifyAdminsNewAnalysis(
         analysisId: requestRef.id,
@@ -46,6 +47,17 @@ class ForageService extends ChangeNotifier implements IForageService {
       );
     } catch (e) {
       debugPrint('Falha ao notificar admins: $e');
+    }
+
+    // Notifica o próprio usuário que sua análise foi recebida
+    try {
+      await _notificationService.notifyUserAnalysisReceived(
+        analysisId: requestRef.id,
+        userId: userId,
+        forageName: name,
+      );
+    } catch (e) {
+      debugPrint('Falha ao notificar usuário sobre recebimento: $e');
     }
   }
 
@@ -124,13 +136,13 @@ class ForageService extends ChangeNotifier implements IForageService {
         .limit(limit)
         .snapshots()
         .map((snap) => snap.docs
-            .map(AnalysisRequestFirestore.fromFirestore)
-            .toList()
-          ..sort((a, b) {
-            final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-            final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-            return bDate.compareTo(aDate);
-          }));
+        .map(AnalysisRequestFirestore.fromFirestore)
+        .toList()
+      ..sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      }));
   }
 
   @override

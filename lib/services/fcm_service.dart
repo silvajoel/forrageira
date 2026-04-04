@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'notification_service.dart';
 
 import 'fcm_web_notifications_stub.dart'
-    if (dart.library.html) 'fcm_web_notifications.dart' as fcm_web;
+if (dart.library.html) 'fcm_web_notifications.dart' as fcm_web;
 
 class FCMService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
@@ -25,7 +25,11 @@ class FCMService {
   }
 
   Future<void> _requestPermission() async {
-    await _messaging.requestPermission();
+    await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
   }
 
   Future<void> _saveToken() async {

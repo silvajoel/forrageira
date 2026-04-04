@@ -24,6 +24,24 @@ class AppNotificationService {
     });
   }
 
+  /// Notifica o próprio usuário que sua análise foi recebida e está em processamento.
+  Future<void> notifyUserAnalysisReceived({
+    required String analysisId,
+    required String userId,
+    required String forageName,
+  }) async {
+    await _firestore.collection('app_notifications').add({
+      'title': 'Análise recebida!',
+      'message':
+      'Sua análise de "$forageName" foi recebida com sucesso e está aguardando revisão.',
+      'recipient_type': 'user',
+      'recipient_id': userId,
+      'analysis_id': analysisId,
+      'read': false,
+      'created_at': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> notifyUserAnalysisCompleted({
     required String analysisId,
     required String userId,
@@ -51,7 +69,7 @@ class AppNotificationService {
         .limit(limit)
         .snapshots()
         .map((snap) => snap.docs.map(AppNotification.fromFirestore).toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
   }
 
   Stream<List<AppNotification>> watchAdminRoleNotifications({int limit = 50}) {
@@ -62,7 +80,7 @@ class AppNotificationService {
         .limit(limit)
         .snapshots()
         .map((snap) => snap.docs.map(AppNotification.fromFirestore).toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
   }
 
   Future<void> markAsRead(String notificationId) {

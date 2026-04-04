@@ -11,6 +11,7 @@ import 'package:forrageira/services/i_forage_service.dart';
 import 'package:forrageira/services/user_service.dart';
 import 'package:provider/provider.dart';
 import '../widgets/analysis_item.dart';
+import '../widgets/notifications_modal.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -251,8 +252,7 @@ class _NotificationBellButtonState extends State<_NotificationBellButton> {
               action: SnackBarAction(
                 label: 'Abrir',
                 onPressed: () {
-                  final main = context.findAncestorStateOfType<MainScreenState>();
-                  main?.openNotifications();
+                  showNotificationsModal(context);
                 },
               ),
             ),
@@ -316,10 +316,7 @@ class _NotificationBellButtonState extends State<_NotificationBellButton> {
             ),
         ],
       ),
-      onPressed: () {
-        final mainScreen = context.findAncestorStateOfType<MainScreenState>();
-        mainScreen?.openNotifications();
-      },
+      onPressed: () => showNotificationsModal(context),
     );
   }
 }

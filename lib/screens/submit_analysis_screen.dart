@@ -27,6 +27,7 @@ class SubmitAnalysisScreen extends StatefulWidget {
 
 class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
   static const int _minImages = 5;
+  static const int _maxImages = 5;
 
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -49,8 +50,22 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
 
   Future<void> _pickFromGallery() async {
     final images = await _picker.pickMultiImage();
+
     if (images.isNotEmpty) {
-      setState(() => _selectedImages.addAll(images.map((e) => File(e.path))));
+      final remaining = _maxImages - _selectedImages.length;
+
+      if (remaining <= 0) {
+        _showSnack("Você já atingiu o limite de $_maxImages imagens.");
+        return;
+      }
+
+      final limitedImages = images.take(remaining).toList();
+
+      if (images.length > remaining) {
+        _showSnack("Você pode adicionar no máximo $_maxImages imagens.");
+      }
+
+      setState(() => _selectedImages.addAll(limitedImages.map((e) => File(e.path))));
     }
   }
 
@@ -60,6 +75,11 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
       imageQuality: 85,
     );
     if (photo != null) {
+      if (_selectedImages.length >= _maxImages) {
+        _showSnack("Limite de $_maxImages imagens atingido.");
+        return;
+      }
+
       setState(() => _selectedImages.add(File(photo.path)));
     }
   }
@@ -73,10 +93,14 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedImages.length < _minImages) {
-      _showSnack("Envie no mínimo $_minImages imagens da forrageira.");
+      _showSnack("Envie no mínimo $_minImages imagens.");
       return;
     }
 
+    if (_selectedImages.length > _maxImages) {
+      _showSnack("Envie no máximo $_maxImages imagens.");
+      return;
+    }
     final uid = _userId;
     if (uid == null) {
       _showSnack("Usuário não autenticado.");

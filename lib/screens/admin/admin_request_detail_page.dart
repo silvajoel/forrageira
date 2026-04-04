@@ -4,6 +4,7 @@ import 'package:forrageira/models/analysis_request.dart';
 import 'package:forrageira/services/i_forage_service.dart';
 import 'package:provider/provider.dart';
 import '../../widgets/admin/admin_shell.dart';
+import '../../services/navigation_service.dart';
 
 class AdminRequestDetailPage extends StatefulWidget {
   const AdminRequestDetailPage({super.key});
@@ -16,11 +17,13 @@ class _AdminRequestDetailPageState extends State<AdminRequestDetailPage> {
   String? requestId;
   String? speciesName;
   final parecerCtrl = TextEditingController();
+  final careCtrl = TextEditingController();
   bool _isSaving = false;
 
   @override
   void dispose() {
     parecerCtrl.dispose();
+    careCtrl.dispose();
     super.dispose();
   }
 
@@ -59,6 +62,9 @@ class _AdminRequestDetailPageState extends State<AdminRequestDetailPage> {
           speciesName ??= req.speciesName;
           if (parecerCtrl.text.isEmpty && req.adminNotes != null) {
             parecerCtrl.text = req.adminNotes!;
+          }
+          if (careCtrl.text.isEmpty && req.careInstructions != null) {
+            careCtrl.text = req.careInstructions!;
           }
 
           return ListView(
@@ -153,10 +159,20 @@ class _AdminRequestDetailPageState extends State<AdminRequestDetailPage> {
                         ),
                         const SizedBox(height: 12),
                         TextField(
-                          controller: parecerCtrl,
-                          maxLines: 6,
+                          controller: careCtrl,
+                          maxLines: 4,
                           decoration: const InputDecoration(
-                            labelText: 'Parecer / Observações',
+                            labelText: 'Cuidados recomendados',
+                            hintText: 'Ex: Irrigar 2x por semana, solo argiloso...',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: parecerCtrl,
+                          maxLines: 4,
+                          decoration: const InputDecoration(
+                            labelText: 'Parecer / Observações do analista',
                             border: OutlineInputBorder(),
                           ),
                         ),
@@ -175,68 +191,74 @@ class _AdminRequestDetailPageState extends State<AdminRequestDetailPage> {
                                 onPressed: _isSaving
                                     ? null
                                     : () async {
-                                        final selectedSpecies = speciesName;
-                                        final notes = parecerCtrl.text.trim();
-                                        if (selectedSpecies == null || selectedSpecies.isEmpty) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Selecione uma espécie.')),
-                                          );
-                                          return;
-                                        }
-                                        if (notes.isEmpty) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Informe um parecer.')),
-                                          );
-                                          return;
-                                        }
+                                  final selectedSpecies = speciesName;
+                                  final care = careCtrl.text.trim();
+                                  final notes = parecerCtrl.text.trim();
+                                  if (selectedSpecies == null || selectedSpecies.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Selecione uma espécie.')),
+                                    );
+                                    return;
+                                  }
+                                  if (care.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Informe os cuidados recomendados.')),
+                                    );
+                                    return;
+                                  }
+                                  if (notes.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Informe um parecer.')),
+                                    );
+                                    return;
+                                  }
 
-                                        final confirmed = await showDialog<bool>(
-                                          context: context,
-                                          builder: (dialogContext) => AlertDialog(
-                                            title: const Text('Confirmar finalização'),
-                                            content: const Text(
-                                              'O usuário será notificado. Se a notificação falhar (permissões Firestore), a análise não será encerrada.',
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(dialogContext, false),
-                                                child: const Text('Cancelar'),
-                                              ),
-                                              ElevatedButton(
-                                                onPressed: () => Navigator.pop(dialogContext, true),
-                                                child: const Text('Finalizar'),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                        if (confirmed != true) return;
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (dialogContext) => AlertDialog(
+                                      title: const Text('Confirmar finalização'),
+                                      content: const Text(
+                                        'O usuário será notificado. Se a notificação falhar (permissões Firestore), a análise não será encerrada.',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(dialogContext, false),
+                                          child: const Text('Cancelar'),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () => Navigator.pop(dialogContext, true),
+                                          child: const Text('Finalizar'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirmed != true) return;
 
-                                        setState(() => _isSaving = true);
-                                        try {
-                                          await forageService.finalizeAnalysisRequest(
-                                            requestId: req.id,
-                                            speciesName: selectedSpecies,
-                                            careInstructions: notes,
-                                            adminNotes: notes,
-                                          );
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Análise finalizada com sucesso.')),
-                                          );
-                                          Navigator.pop(context);
-                                        } catch (e) {
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Erro ao finalizar. Verifique permissões (app_notifications) e tente de novo.\n$e',
-                                              ),
-                                            ),
-                                          );
-                                        } finally {
-                                          if (mounted) setState(() => _isSaving = false);
-                                        }
-                                      },
+                                  setState(() => _isSaving = true);
+                                  try {
+                                    await forageService.finalizeAnalysisRequest(
+                                      requestId: req.id,
+                                      speciesName: selectedSpecies,
+                                      careInstructions: care,
+                                      adminNotes: notes,
+                                    );
+                                    // Usa navigatorKey para navegar de forma confiável
+                                    // independente do contexto (web rota raiz ou mobile)
+                                    navigatorKey.currentState
+                                        ?.pushReplacementNamed('/admin/requests');
+                                  } catch (e) {
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Erro ao finalizar. Verifique permissões (app_notifications) e tente de novo.\n$e',
+                                        ),
+                                      ),
+                                    );
+                                  } finally {
+                                    if (mounted) setState(() => _isSaving = false);
+                                  }
+                                },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF1F5B3F),
                                   foregroundColor: Colors.white,
@@ -244,10 +266,10 @@ class _AdminRequestDetailPageState extends State<AdminRequestDetailPage> {
                                 ),
                                 child: _isSaving
                                     ? const SizedBox(
-                                        height: 18,
-                                        width: 18,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                      )
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
                                     : const Text('Finalizar'),
                               ),
                             ),
