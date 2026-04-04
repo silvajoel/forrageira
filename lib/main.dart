@@ -24,6 +24,7 @@ import 'screens/admin/admin_history_page.dart';
 import 'screens/admin/admin_species_page.dart';
 import 'screens/admin/admin_settings_page.dart';
 import 'screens/admin/admin_home_page.dart';
+import 'screens/app_bootstrap_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,7 +59,7 @@ class MyApp extends StatelessWidget {
       theme: appTheme,
 
       // Controle de autenticação
-      home: AuthCheck(),
+      home: AppBootstrapPage(),
 
       routes: {
         '/home': (context) => const MainScreen(),
