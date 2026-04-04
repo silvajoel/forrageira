@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../data/admin_store.dart';
-import '../../data/models.dart';
+import 'package:forrageira/models/analysis_request.dart';
+import 'package:forrageira/services/i_forage_service.dart';
+import 'package:provider/provider.dart';
 import '../../widgets/admin/admin_shell.dart';
 
 class AdminRequestsPage extends StatefulWidget {
@@ -11,34 +12,17 @@ class AdminRequestsPage extends StatefulWidget {
 }
 
 class _AdminRequestsPageState extends State<AdminRequestsPage> {
-  final store = AdminStore.instance;
   final searchCtrl = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    store.addListener(_onChange);
-  }
-
-  @override
   void dispose() {
-    store.removeListener(_onChange);
     searchCtrl.dispose();
     super.dispose();
   }
 
-  void _onChange() => setState(() {});
-
   @override
   Widget build(BuildContext context) {
-    final q = searchCtrl.text.trim().toLowerCase();
-    final items = store.pendingRequests.where((r) {
-      if (q.isEmpty) return true;
-      return r.cliente.toLowerCase().contains(q) ||
-          r.localidade.toLowerCase().contains(q) ||
-          r.propriedade.toLowerCase().contains(q) ||
-          r.id.toLowerCase().contains(q);
-    }).toList();
+    final forageService = context.read<IForageService>();
 
     return AdminShell(
       selectedMenu: 'pendentes',
@@ -50,10 +34,28 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
           const SizedBox(height: 12),
           _card(
             title: 'Lista de solicitações',
-            child: _RequestsTable(
-              items: items,
-              onOpen: (id) => Navigator.pushNamed(context, '/admin/request', arguments: id),
-              onStart: (id) => store.startReview(id),
+            child: StreamBuilder<List<AnalysisRequest>>(
+              stream: forageService.watchAllRequests(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final all = snapshot.data ?? [];
+                final pending = all.where((e) => e.status != 'completed').toList();
+                final q = searchCtrl.text.trim().toLowerCase();
+                final items = pending.where((r) {
+                  if (q.isEmpty) return true;
+                  return r.name.toLowerCase().contains(q) ||
+                      r.userId.toLowerCase().contains(q) ||
+                      r.id.toLowerCase().contains(q);
+                }).toList();
+
+                return _RequestsTable(
+                  items: items,
+                  onOpen: (id) =>
+                      Navigator.pushNamed(context, '/admin/request', arguments: id),
+                );
+              },
             ),
           ),
         ],
@@ -79,7 +81,7 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
         onChanged: (_) => setState(() {}),
         decoration: const InputDecoration(
           border: InputBorder.none,
-          hintText: 'Buscar por cliente, localidade, id...',
+          hintText: 'Buscar por nome, usuário ou id...',
           prefixIcon: Icon(Icons.search),
         ),
       ),
@@ -108,12 +110,10 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
 class _RequestsTable extends StatelessWidget {
   final List<AnalysisRequest> items;
   final void Function(String id) onOpen;
-  final void Function(String id) onStart;
 
   const _RequestsTable({
     required this.items,
     required this.onOpen,
-    required this.onStart,
   });
 
   @override
@@ -125,57 +125,41 @@ class _RequestsTable extends StatelessWidget {
           DataColumn(label: Text('Status')),
           DataColumn(label: Text('ID')),
           DataColumn(label: Text('Data')),
-          DataColumn(label: Text('Cliente')),
-          DataColumn(label: Text('Propriedade')),
-          DataColumn(label: Text('Localidade')),
+          DataColumn(label: Text('Forrageira')),
+          DataColumn(label: Text('Usuário')),
           DataColumn(label: Text('Ações')),
         ],
         rows: items.map((e) {
           return DataRow(cells: [
             DataCell(_statusPill(e.status)),
             DataCell(Text(e.id)),
-            DataCell(Text(_fmt(e.createdAt))),
-            DataCell(Text(e.cliente)),
-            DataCell(Text(e.propriedade)),
-            DataCell(Text(e.localidade)),
-            DataCell(Row(
-              children: [
-                TextButton(
-                  onPressed: () => onStart(e.id),
-                  child: const Text('Iniciar'),
+            DataCell(Text(_fmtDate(e.createdAt ?? DateTime.now()))),
+            DataCell(Text(e.name)),
+            DataCell(Text(e.userId)),
+            DataCell(
+              ElevatedButton(
+                onPressed: () => onOpen(e.id),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1F5B3F),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () => onOpen(e.id),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1F5B3F),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                  ),
-                  child: const Text('Abrir'),
-                ),
-              ],
-            )),
+                child: const Text('Abrir'),
+              ),
+            ),
           ]);
         }).toList(),
       ),
     );
   }
 
-  static String _fmt(DateTime d) =>
+  String _fmtDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
-  Widget _statusPill(RequestStatus s) {
-    final text = switch (s) {
-      RequestStatus.pendente => 'Pendente',
-      RequestStatus.emAnalise => 'Em análise',
-      RequestStatus.finalizado => 'Finalizado',
-    };
-    final dot = switch (s) {
-      RequestStatus.pendente => const Color(0xFFE53935),
-      RequestStatus.emAnalise => const Color(0xFFFFB300),
-      RequestStatus.finalizado => const Color(0xFF43A047),
-    };
+  Widget _statusPill(String status) {
+    final isCompleted = status == 'completed';
+    final text = isCompleted ? 'Finalizado' : 'Pendente';
+    final dot = isCompleted ? const Color(0xFF43A047) : const Color(0xFFE53935);
 
     return Row(children: [
       Container(width: 10, height: 10, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),

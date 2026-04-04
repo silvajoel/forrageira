@@ -1,12 +1,14 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:forrageira/models/analysis_request.dart';
-import 'package:forrageira/screens/analysis_detail_screen.dart';
-import 'package:forrageira/screens/analysis_screen.dart';
+import 'package:forrageira/models/app_notification.dart';
+import 'package:forrageira/services/app_notification_service.dart';
 import 'package:forrageira/screens/main_screen.dart';
-import 'package:forrageira/screens/notifications_screen.dart';
 import 'package:forrageira/services/auth_service.dart';
 import 'package:forrageira/services/i_forage_service.dart';
-import 'package:forrageira/services/notification_service.dart';
+import 'package:forrageira/services/user_service.dart';
 import 'package:provider/provider.dart';
 import '../widgets/analysis_item.dart';
 
@@ -18,30 +20,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool valor = false;
-
   String _statusLabel(String status) {
     switch (status) {
       case 'pending':   return 'Em análise';
       case 'completed': return 'Finalizado';
       default:          return 'Desconhecido';
-    }
-  }
-
-  void _toggleNotification() {
-    setState(() {
-      valor = !valor;
-    });
-
-    if (valor) {
-      Provider.of<NotificationService>(context, listen: false).showNotification(
-        CustomNotification(
-          id: 1,
-          title: 'teste',
-          body: 'Acesse o app!',
-          payload: '/profile',
-        ),
-      );
     }
   }
 
@@ -71,16 +54,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: Icon(valor ? Icons.notifications : Icons.notifications_none),
-            onPressed: () {
-              _toggleNotification(); // toggle + dispara notificação se valor=true
-
-              final mainScreen =
-              context.findAncestorStateOfType<MainScreenState>();
-              mainScreen?.openNotifications();
-            },
-          ),
+          if (userId.isNotEmpty)
+            _NotificationBellButton(userId: userId),
         ],
       ),
       body: SafeArea(
@@ -208,6 +183,143 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Contador de não lidas (inclui notificações de papel admin) + SnackBar ao chegar nova.
+class _NotificationBellButton extends StatefulWidget {
+  final String userId;
+
+  const _NotificationBellButton({required this.userId});
+
+  @override
+  State<_NotificationBellButton> createState() => _NotificationBellButtonState();
+}
+
+class _NotificationBellButtonState extends State<_NotificationBellButton> {
+  final _service = AppNotificationService();
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _profileSub;
+  final List<StreamSubscription<List<AppNotification>>> _notifSubs = [];
+
+  int _unread = 0;
+  int? _prevUnread;
+  late final DateTime _allowToastAfter;
+
+  @override
+  void initState() {
+    super.initState();
+    _allowToastAfter = DateTime.now().add(const Duration(seconds: 3));
+    _profileSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .snapshots()
+        .listen(_onProfile);
+  }
+
+  void _onProfile(DocumentSnapshot<Map<String, dynamic>> snap) {
+    for (final s in _notifSubs) {
+      s.cancel();
+    }
+    _notifSubs.clear();
+
+    final profile = snap.data();
+    final isAdmin = UserService.isAdminRole(profile);
+
+    var userItems = <AppNotification>[];
+    var adminItems = <AppNotification>[];
+
+    void emit() {
+      final merged = isAdmin ? [...userItems, ...adminItems] : userItems;
+      final unread = merged.where((n) => !n.read).length;
+      final prev = _prevUnread;
+      final showToast = prev != null &&
+          unread > prev &&
+          DateTime.now().isAfter(_allowToastAfter);
+      if (!mounted) return;
+      setState(() {
+        _prevUnread = unread;
+        _unread = unread;
+      });
+      if (showToast && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Você tem novas notificações.'),
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Abrir',
+                onPressed: () {
+                  final main = context.findAncestorStateOfType<MainScreenState>();
+                  main?.openNotifications();
+                },
+              ),
+            ),
+          );
+        });
+      }
+    }
+
+    _notifSubs.add(
+      _service.watchUserNotifications(userId: widget.userId).listen((list) {
+        userItems = list;
+        emit();
+      }),
+    );
+    if (isAdmin) {
+      _notifSubs.add(
+        _service.watchAdminRoleNotifications().listen((list) {
+          adminItems = list;
+          emit();
+        }),
+      );
+    } else {
+      adminItems = [];
+    }
+  }
+
+  @override
+  void dispose() {
+    _profileSub?.cancel();
+    for (final s in _notifSubs) {
+      s.cancel();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: 'Notificações',
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(Icons.notifications_none),
+          if (_unread > 0)
+            Positioned(
+              right: -6,
+              top: -6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                child: Text(
+                  _unread > 99 ? '99+' : '$_unread',
+                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+      onPressed: () {
+        final mainScreen = context.findAncestorStateOfType<MainScreenState>();
+        mainScreen?.openNotifications();
+      },
     );
   }
 }

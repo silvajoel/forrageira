@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../data/admin_store.dart';
-import '../../data/models.dart';
+import 'package:forrageira/models/analysis_request.dart';
+import 'package:forrageira/services/i_forage_service.dart';
+import 'package:provider/provider.dart';
 import '../../widgets/admin/admin_shell.dart';
 
 class AdminDashboardPage extends StatefulWidget {
@@ -11,52 +12,56 @@ class AdminDashboardPage extends StatefulWidget {
 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
-  final store = AdminStore.instance;
-
-  @override
-  void initState() {
-    super.initState();
-    store.addListener(_onChange);
-  }
-
-  @override
-  void dispose() {
-    store.removeListener(_onChange);
-    super.dispose();
-  }
-
-  void _onChange() => setState(() {});
-
   @override
   Widget build(BuildContext context) {
-    final pendentes = store.pendingRequests;
+    final forageService = context.read<IForageService>();
 
     return AdminShell(
       selectedMenu: 'dashboard',
-      child: ListView(
-        children: [
-          _searchBar(),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
+      child: StreamBuilder<List<AnalysisRequest>>(
+        stream: forageService.watchAllRequests(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final all = snapshot.data ?? [];
+          final pendentes = all.where((e) => e.status != 'completed').toList();
+          final finalizados = all.where((e) => e.status == 'completed').toList();
+
+          final now = DateTime.now();
+          bool sameDay(DateTime a, DateTime b) =>
+              a.year == b.year && a.month == b.month && a.day == b.day;
+          final concluidosHoje = finalizados.where((e) {
+            final d = e.reviewedAt;
+            return d != null && sameDay(d, now);
+          }).length;
+
+          return ListView(
             children: [
-              _kpi(Icons.person_outline, 'Pendentes:', '${store.pendentesCount} análises'),
-              _kpi(Icons.check_box_outlined, 'Concluídos hoje', '${store.concluidosHojeCount} análises'),
-              _kpi(Icons.access_time, 'Tempo médio', _fmtDuration(store.tempoMedioMock)),
+              _searchBar(),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: [
+                  _kpi(Icons.person_outline, 'Pendentes', '${pendentes.length} análises'),
+                  _kpi(Icons.check_box_outlined, 'Concluídos hoje', '$concluidosHoje análises'),
+                  _kpi(Icons.analytics_outlined, 'Total', '${all.length} análises'),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _card(
+                title: 'Fila de trabalho (pendentes)',
+                child: _RequestsTable(
+                  items: pendentes,
+                  onOpen: (id) {
+                    Navigator.pushNamed(context, '/admin/request', arguments: id);
+                  },
+                ),
+              ),
             ],
-          ),
-          const SizedBox(height: 16),
-          _card(
-            title: 'Fila de trabalho (pendentes)',
-            child: _RequestsTable(
-              items: pendentes,
-              onOpen: (id) {
-                Navigator.pushNamed(context, '/admin/request', arguments: id);
-              },
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -117,12 +122,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ]),
     );
   }
-
-  String _fmtDuration(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes.remainder(60);
-    return '${h}h ${m.toString().padLeft(2, '0')} min';
-  }
 }
 
 class _RequestsTable extends StatelessWidget {
@@ -140,19 +139,19 @@ class _RequestsTable extends StatelessWidget {
           DataColumn(label: Text('Status')),
           DataColumn(label: Text('ID')),
           DataColumn(label: Text('Data')),
-          DataColumn(label: Text('Cliente')),
-          DataColumn(label: Text('Propriedade')),
-          DataColumn(label: Text('Localidade')),
+          DataColumn(label: Text('Forrageira')),
+          DataColumn(label: Text('Usuário')),
+          DataColumn(label: Text('Coordenadas')),
           DataColumn(label: Text('Ações')),
         ],
         rows: items.map((e) {
           return DataRow(cells: [
             DataCell(_statusPill(e.status)),
             DataCell(Text(e.id)),
-            DataCell(Text('${e.createdAt.day}/${e.createdAt.month}/${e.createdAt.year}')),
-            DataCell(Text(e.cliente)),
-            DataCell(Text(e.propriedade)),
-            DataCell(Text(e.localidade)),
+            DataCell(Text(_fmtDate(e.createdAt))),
+            DataCell(Text(e.name)),
+            DataCell(Text(e.userId)),
+            DataCell(Text(_fmtCoordinates(e.latitude, e.longitude))),
             DataCell(
               ElevatedButton(
                 onPressed: () => onOpen(e.id),
@@ -170,17 +169,19 @@ class _RequestsTable extends StatelessWidget {
     );
   }
 
-  Widget _statusPill(RequestStatus s) {
-    final text = switch (s) {
-      RequestStatus.pendente => 'Pendente',
-      RequestStatus.emAnalise => 'Em análise',
-      RequestStatus.finalizado => 'Finalizado',
-    };
-    final dot = switch (s) {
-      RequestStatus.pendente => const Color(0xFFE53935),
-      RequestStatus.emAnalise => const Color(0xFFFFB300),
-      RequestStatus.finalizado => const Color(0xFF43A047),
-    };
+  String _fmtDate(DateTime? d) {
+    if (d == null) return '-';
+    return '${d.day}/${d.month}/${d.year}';
+  }
+
+  String _fmtCoordinates(double lat, double lng) {
+    return '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+  }
+
+  Widget _statusPill(String status) {
+    final isCompleted = status == 'completed';
+    final text = isCompleted ? 'Finalizado' : 'Pendente';
+    final dot = isCompleted ? const Color(0xFF43A047) : const Color(0xFFE53935);
 
     return Row(children: [
       Container(width: 10, height: 10, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),

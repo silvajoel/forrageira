@@ -66,7 +66,40 @@ class UserService {
 
   Future<Map<String, dynamic>?> getProfile(String uid) async {
     final doc = await _db.collection('users').doc(uid).get();
+    if (!doc.exists) return null;
     return doc.data();
+  }
+
+  /// Só inativa quando [active] é explicitamente `false` (documentos sem o campo contam como ativos).
+  static bool isProfileActive(Map<String, dynamic> profile) {
+    return profile['active'] != false;
+  }
+
+  /// Data de cadastro em `users` (o app usa `createdAt`; documentos manuais podem ter `created_at`).
+  static Timestamp? userCreatedTimestamp(Map<String, dynamic> profile) {
+    final v = profile['createdAt'] ?? profile['created_at'];
+    return v is Timestamp ? v : null;
+  }
+
+  /// Valor do campo de papel (aceita chave `role` / `Role` e remove espaços invisíveis).
+  static String? roleValue(Map<String, dynamic>? profile) {
+    if (profile == null) return null;
+    dynamic raw;
+    for (final e in profile.entries) {
+      if (e.key.trim().toLowerCase() == 'role') {
+        raw = e.value;
+        break;
+      }
+    }
+    if (raw == null) return null;
+    var s = raw.toString().trim();
+    s = s.replaceAll(RegExp(r'[\u200B-\u200D\uFEFF]'), '');
+    return s.toLowerCase();
+  }
+
+  /// Alinhado ao login admin: valor textual `admin` (várias capitalizações no Firestore).
+  static bool isAdminRole(Map<String, dynamic>? profile) {
+    return roleValue(profile) == 'admin';
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> streamProfile(String uid) {

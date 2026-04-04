@@ -83,7 +83,7 @@ class MainScreenState extends State<MainScreen> {
               : const SizedBox(),
 
           // índice 5 → notificações
-          const NotificationsScreen(),
+          NotificationsScreen(),
         ],
       ),
 

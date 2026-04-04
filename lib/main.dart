@@ -1,23 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart'; // 👈 IMPORTANTE
+import 'package:provider/provider.dart';
+
 import 'package:forrageira/services/forage_service.dart';
 import 'package:forrageira/services/i_forage_service.dart';
 import 'package:forrageira/services/location_service.dart';
 import 'package:forrageira/services/notification_service.dart';
 import 'package:forrageira/services/plesk_image_storage_service.dart';
+import 'package:forrageira/services/fcm_service.dart';
 import 'package:forrageira/widgets/auth_check.dart';
-import 'package:provider/provider.dart';
-import 'package:forrageira/screens/analysis_screen.dart';
+
 import 'package:forrageira/screens/forgot_password_screen.dart';
 import 'package:forrageira/screens/profile_screen.dart';
 import 'package:forrageira/screens/register_screen.dart';
 import 'package:forrageira/screens/submit_analysis_screen.dart';
 import 'package:forrageira/screens/main_screen.dart';
+
 import 'package:forrageira/services/auth_service.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'services/navigation_service.dart';
 
+// ADMIN
 import 'screens/admin/admin_login_page.dart';
 import 'screens/admin/admin_dashboard_page.dart';
 import 'screens/admin/admin_requests_page.dart';
@@ -27,23 +33,42 @@ import 'screens/admin/admin_history_page.dart';
 import 'screens/admin/admin_species_page.dart';
 import 'screens/admin/admin_settings_page.dart';
 
+/// 🔥 HANDLER GLOBAL (OBRIGATÓRIO)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  print('🔔 Background message: ${message.messageId}');
+}
+
 void main() async {
-  // 1. Garante a inicialização dos bindings do Flutter
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 3. Inicializa as Notificações e Timezone ANTES de rodar o app
+  if (!kIsWeb) {
+    /// 🔥 REGISTRA HANDLER DE BACKGROUND
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  }
+
   final notificationService = NotificationService();
-  await notificationService.init();
+  if (!kIsWeb) {
+    await notificationService.init();
+  }
+
+  // 🔥 FCM
+  final fcmService = FCMService();
+  await fcmService.init();
 
   runApp(
     MultiProvider(
       providers: [
-        // Passamos a instância já inicializada
         Provider<NotificationService>.value(value: notificationService),
+        Provider<FCMService>.value(value: fcmService),
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider<IForageService>(
           create: (_) => ForageService(),

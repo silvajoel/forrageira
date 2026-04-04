@@ -99,4 +99,31 @@ class NotificationService {
       payload: notification.payload,
     );
   }
+
+  void onSelectNotificationFromFCM(String payloadId) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    try {
+      final forageService = Provider.of<IForageService>(context, listen: false);
+      final analysis = await forageService.getById(payloadId);
+
+      final mainScreen = context.findAncestorStateOfType<MainScreenState>();
+
+      if (mainScreen != null) {
+        mainScreen.openAnalysisDetail(analysis);
+      } else {
+        navigatorKey.currentState?.pushNamedAndRemoveUntil('/home', (route) => false);
+
+        await Future.delayed(const Duration(milliseconds: 800));
+
+        final newContext = navigatorKey.currentContext;
+        final newMainScreen = newContext?.findAncestorStateOfType<MainScreenState>();
+        newMainScreen?.openAnalysisDetail(analysis);
+      }
+    } catch (e) {
+      print("Erro ao abrir via FCM: $e");
+    }
+  }
 }
