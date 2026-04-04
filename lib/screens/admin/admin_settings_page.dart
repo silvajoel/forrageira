@@ -139,8 +139,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                             icon: Icon(obscureCurrent
                                 ? Icons.visibility
                                 : Icons.visibility_off),
-                            onPressed: () => setState(
-                                    () => obscureCurrent = !obscureCurrent),
+                            onPressed: () =>
+                                setState(() => obscureCurrent = !obscureCurrent),
                           ),
                         ),
                       ),
@@ -173,8 +173,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                             icon: Icon(obscureConfirm
                                 ? Icons.visibility
                                 : Icons.visibility_off),
-                            onPressed: () => setState(
-                                    () => obscureConfirm = !obscureConfirm),
+                            onPressed: () =>
+                                setState(() => obscureConfirm = !obscureConfirm),
                           ),
                         ),
                       ),
@@ -203,7 +203,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Obs: alterar e-mail/senha pode exigir login recente.',
+                        'Obs: ao alterar o e-mail, um link de verificação será enviado ao novo endereço.',
                         style: TextStyle(color: Colors.black54, fontSize: 12),
                       ),
                     ],
@@ -233,14 +233,11 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
     setState(() => saving = true);
 
     try {
-      // 1) Atualiza Firestore (perfil principal)
+      // 1) Atualiza nome no Firestore
       await _userService.updateProfile(uid: uid, name: nome, email: email);
 
-      // 2) Atualiza e-mail no Auth se mudou (pode exigir re-login)
-      final authEmail = _auth.currentUser?.email;
-      if (authEmail != null && authEmail != email) {
-        await _auth.currentUser!.updateEmail(email);
-      }
+      // 2) Atualiza e-mail via UserService (envia verificação se mudou)
+      await _userService.updateEmail(uid: uid, newEmail: email);
 
       // 3) Troca senha (se usuário preencheu qualquer campo de senha)
       final wantsChangePassword = currentPass.isNotEmpty ||
@@ -248,7 +245,6 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           confirmNewPass.isNotEmpty;
 
       if (wantsChangePassword) {
-        // validações
         if (currentPass.isEmpty || newPass.isEmpty || confirmNewPass.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -273,7 +269,6 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           return;
         }
 
-        // reautentica e troca senha
         await _authService.resetPasswordFromCurrentPassword(
           currentPassword: currentPass,
           newPassword: newPass,
@@ -286,17 +281,29 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       }
 
       if (!mounted) return;
+
+      final authEmail = _auth.currentUser?.email ?? '';
+      final emailChanged = authEmail != email;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Dados atualizados com sucesso!')),
+        SnackBar(
+          content: Text(
+            emailChanged
+                ? 'Dados salvos! Verifique o novo e-mail para confirmar a troca.'
+                : 'Dados atualizados com sucesso!',
+          ),
+        ),
       );
     } on FirebaseAuthException catch (e) {
       String msg = 'Dados salvos, mas não foi possível atualizar e-mail/senha.';
 
       if (e.code == 'requires-recent-login') {
         msg =
-        'Salvo no sistema. Para mudar e-mail/senha, faça login novamente e tente de novo.';
+        'Para mudar e-mail/senha, faça login novamente e tente de novo.';
       } else if (e.code == 'wrong-password') {
         msg = 'Senha atual incorreta.';
+      } else if (e.code == 'email-already-in-use') {
+        msg = 'Este e-mail já está em uso por outra conta.';
       }
 
       if (!mounted) return;
@@ -319,9 +326,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(
-              color: Color(0x14000000),
-              blurRadius: 14,
-              offset: Offset(0, 6)),
+              color: Color(0x14000000), blurRadius: 14, offset: Offset(0, 6)),
         ],
       ),
       child: Column(

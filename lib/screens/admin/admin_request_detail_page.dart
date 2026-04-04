@@ -23,6 +23,7 @@ class _AdminRequestDetailPageState extends State<AdminRequestDetailPage> {
   @override
   void dispose() {
     parecerCtrl.dispose();
+    careCtrl.dispose();
     super.dispose();
   }
 
