@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:forrageira/services/audit_log_service.dart';
+import 'package:forrageira/services/user_service.dart';
 
 
 class AdminClientsPage extends StatefulWidget {
