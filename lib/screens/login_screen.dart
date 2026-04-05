@@ -49,7 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      final active = UserService.isProfileActive(profile);
+      final role = (profile['role'] ?? 'user').toString().toLowerCase();
+      final active = profile['active'] == true;
 
       if (!active) {
         await _auth.logout();
@@ -64,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      if (UserService.isAdminRole(profile)) {
+      if (role == 'admin') {
         await _auth.logout();
 
         ScaffoldMessenger.of(context).showSnackBar(

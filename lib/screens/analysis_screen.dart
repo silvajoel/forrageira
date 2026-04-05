@@ -1,39 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:forrageira/models/analysis_request.dart';
-import 'package:forrageira/screens/analysis_detail_screen.dart';
-import 'package:forrageira/screens/main_screen.dart';
-import 'package:forrageira/services/i_forage_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
+import '../widgets/new_analysis_card.dart';
 import '../widgets/analysis_item.dart';
+import '../widgets/bottom_nav_custom.dart';
 
 class AnalysisScreen extends StatelessWidget {
   const AnalysisScreen({Key? key}) : super(key: key);
 
-  String _statusLabel(String status) {
-    switch (status) {
-      case 'pending':   return 'Em análise';
-      case 'completed': return 'Finalizado';
-      default:          return 'Desconhecido';
-    }
-  }
-
-  String _formatDate(DateTime? date) {
-    if (date == null) return '';
-    return "${date.hour}:${date.minute.toString().padLeft(2, '0')} "
-        "${date.day}/${date.month}/${date.year}";
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme        = Theme.of(context);
-    final forageService = context.read<IForageService>();
-    final userId       = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
-          children: [
+        title: Row(
+          children: const [
             Icon(Icons.grass),
             SizedBox(width: 8),
             Text('Minhas Análises'),
@@ -46,82 +26,67 @@ class AnalysisScreen extends StatelessWidget {
           ),
         ],
       ),
+
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
 
+            /// 🔹 Seção principal (Nova análise)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+
                     const SizedBox(height: 20),
-                    Text(
-                      'Minhas Análises',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+
+                    /// 🔹 Título da lista
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Minhas Análises',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
+
                     const SizedBox(height: 12),
                   ],
                 ),
               ),
             ),
 
-            StreamBuilder<List<AnalysisRequest>>(
-              stream: forageService.watchAllUserForages(userId),
-              builder: (context, snapshot) {
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SliverToBoxAdapter(
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-
-                final items = snapshot.data ?? [];
-
-                if (items.isEmpty) {
-                  return const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Center(
-                        child: Text("Nenhuma análise enviada ainda."),
-                      ),
+            /// 🔹 Lista de análises
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate(
+                  const [
+                    AnalysisItem(
+                      title: 'Brachiaria Brizantha',
+                      date: '21:00 11/01/2026',
+                      status: 'Finalizado',
                     ),
-                  );
-                }
-
-                return SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                        final item = items[index];
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: AnalysisItem(
-                            title: item.name,
-                            date: _formatDate(item.createdAt),
-                            status: _statusLabel(item.status),
-                            // Primeira imagem como capa
-                            coverImageUrl: item.imageUrls.isNotEmpty
-                                ? item.imageUrls.first
-                                : null,
-                            onTap: () {
-                              final mainScreen =
-                              context.findAncestorStateOfType<MainScreenState>();
-                              mainScreen?.openAnalysisDetail(item);
-                            },
-                          ),
-                        );
-                      },
-                      childCount: items.length,
+                    SizedBox(height: 10),
+                    AnalysisItem(
+                      title: 'Brachiaria Brizantha',
+                      date: '21:00 11/01/2026',
+                      status: 'Em análise',
                     ),
-                  ),
-                );
-              },
+                    SizedBox(height: 10),
+                    AnalysisItem(
+                      title: 'Brachiaria Brizantha',
+                      date: '21:00 11/01/2026',
+                      status: 'Finalizado',
+                    ),
+                    SizedBox(height: 100),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

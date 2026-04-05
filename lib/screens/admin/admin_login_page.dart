@@ -72,7 +72,8 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         return;
       }
 
-      final active = UserService.isProfileActive(profile);
+      final role = (profile['role'] ?? '').toString().toLowerCase();
+      final active = profile['active'] == true;
 
       if (!active) {
         await _auth.logout();
@@ -84,15 +85,12 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         return;
       }
 
-      if (!UserService.isAdminRole(profile)) {
+      if (role != 'admin') {
         await _auth.logout();
         if (!mounted) return;
         setState(() {
           loading = false;
-          error = 'Acesso negado: o perfil em users não é admin.\n'
-              'No Firestore, o ID do documento em "users" deve ser o mesmo UID '
-              'que aparece em Authentication → Users (não use ID aleatório). '
-              'O campo deve ser role = "admin".';
+          error = 'Acesso negado. Essa conta não é administradora.';
         });
         return;
       }
@@ -267,9 +265,9 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
             }
 
             final profile = profileSnapshot.data;
-            final isAdmin = UserService.isAdminRole(profile);
-            final isActive =
-                profile != null && UserService.isProfileActive(profile);
+            final isAdmin =
+                (profile?['role'] ?? '').toString().toLowerCase() == 'admin';
+            final isActive = profile?['active'] == true;
 
             if (profile != null && isAdmin && isActive) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
