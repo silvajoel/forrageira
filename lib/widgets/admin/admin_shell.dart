@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -30,6 +29,7 @@ class _AdminShellState extends State<AdminShell> {
 
   User? _user;
   Future<Map<String, dynamic>?>? _profileFuture;
+  bool _redirecting = false;
 
   @override
   void initState() {
@@ -43,9 +43,11 @@ class _AdminShellState extends State<AdminShell> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 980;
+    final isDesktop = MediaQuery.of(context).size.width >= 900;
 
-    if (_user == null) {
+    if (_user == null && !_redirecting) {
+      _redirecting = true;
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         Navigator.of(context).pushNamedAndRemoveUntil(
@@ -68,7 +70,9 @@ class _AdminShellState extends State<AdminShell> {
         final isAdmin = profile?['role'] == 'admin';
         final isActive = profile?['active'] == true;
 
-        if (!isAdmin || !isActive) {
+        if ((!isAdmin || !isActive) && !_redirecting) {
+          _redirecting = true;
+
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             await _auth.signOut();
             if (!mounted) return;

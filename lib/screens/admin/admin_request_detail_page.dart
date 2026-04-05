@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:forrageira/services/app_notification_service.dart';
 
 class AdminRequestDetailPage extends StatefulWidget {
   final String requestId;
@@ -20,13 +21,6 @@ class _AdminRequestDetailPageState extends State<AdminRequestDetailPage> {
   String? especieId;
   bool _saving = false;
 
-  @override
-  void dispose() {
-    parecerCtrl.dispose();
-    careCtrl.dispose();
-    super.dispose();
-  }
-
   Future<Map<String, dynamic>?> _loadRequest() async {
     final doc = await _firestore
         .collection('analysis_requests')
@@ -36,6 +30,7 @@ class _AdminRequestDetailPageState extends State<AdminRequestDetailPage> {
     if (!doc.exists) return null;
     return {'id': doc.id, ...doc.data()!};
   }
+
 
   Future<String> _loadUserName(String? userId) async {
     if (userId == null || userId.isEmpty) return '-';

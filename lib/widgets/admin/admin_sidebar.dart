@@ -38,9 +38,7 @@ class AdminSidebar extends StatelessWidget {
     final bg = isSel ? Colors.white12 : Colors.transparent;
 
     return InkWell(
-      onTap: () {
-        if (!isSel) onSelect(keyName);
-      },
+      onTap: () => onSelect(keyName),
       child: Container(
         color: bg,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -64,11 +62,13 @@ class AdminSidebar extends StatelessWidget {
     return InkWell(
       onTap: () async {
         await FirebaseAuth.instance.signOut();
-        if (!context.mounted) return;
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/admin-login',
-          (route) => false,
-        );
+
+        if (context.mounted) {
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/admin-login',
+                (route) => false,
+          );
+        }
       },
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -78,7 +78,10 @@ class AdminSidebar extends StatelessWidget {
             SizedBox(width: 12),
             Text(
               'Logout',
-              style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Colors.white70,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
