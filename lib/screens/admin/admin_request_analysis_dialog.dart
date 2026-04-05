@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:forrageira/services/app_notification_service.dart';
 
 class AdminRequestAnalysisDialog extends StatefulWidget {
   final String requestId;
@@ -17,19 +18,22 @@ class AdminRequestAnalysisDialog extends StatefulWidget {
 
 class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final TextEditingController _parecerCtrl = TextEditingController();
+  final TextEditingController _careInstructionsCtrl = TextEditingController();
+  final TextEditingController _obsManuseioCtrl = TextEditingController();
   final TextEditingController _newSpeciesNameCtrl = TextEditingController();
   final TextEditingController _newSpeciesNotesCtrl = TextEditingController();
   final _auth = FirebaseAuth.instance;
 
   bool _saving = false;
   bool _creatingSpecies = false;
-  bool _speciesLoaded = false;
+  int _mainImageIndex = 0;
+  bool _allImagesFailed = false;
 
   Map<String, dynamic>? _request;
   String _userName = '-';
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _speciesDocs = [];
   String? _selectedSpeciesId;
+  List<String> _resolvedImageUrls = [];
 
   @override
   void initState() {
@@ -39,7 +43,8 @@ class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog>
 
   @override
   void dispose() {
-    _parecerCtrl.dispose();
+    _careInstructionsCtrl.dispose();
+    _obsManuseioCtrl.dispose();
     _newSpeciesNameCtrl.dispose();
     _newSpeciesNotesCtrl.dispose();
     super.dispose();
@@ -85,18 +90,40 @@ class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog>
         _speciesDocs = speciesSnap.docs;
         _selectedSpeciesId = _existingSpeciesId(request);
 
-        final existingParecer = (request['parecer'] ?? '').toString().trim();
-        if (existingParecer.isNotEmpty) {
-          _parecerCtrl.text = existingParecer;
+        final existingCare = (request['care_instructions'] ?? '').toString().trim();
+        if (existingCare.isNotEmpty) {
+          _careInstructionsCtrl.text = existingCare;
+        }
+
+        final existingObs = (request['admin_notes'] ?? '').toString().trim();
+        if (existingObs.isNotEmpty) {
+          _obsManuseioCtrl.text = existingObs;
         }
 
         if (_selectedSpeciesId == null && _speciesDocs.isNotEmpty && !_isCompleted) {
           _selectedSpeciesId = _speciesDocs.first.id;
         }
+
+        // Resolve image URLs inside setState to avoid mutating during build
+        final imageListRaw = request['images'] ?? request['imageUrls'] ?? [];
+        _resolvedImageUrls = imageListRaw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+        if (_resolvedImageUrls.isEmpty) {
+          final singleUrl = (request['image_url'] ?? request['photo_url'] ?? request['image'] ?? '').toString();
+          if (singleUrl.isNotEmpty) {
+            _resolvedImageUrls.add(singleUrl);
+          }
+        }
+        _allImagesFailed = false;
       });
 
-      if (!_isCompleted && _selectedSpeciesId != null && _parecerCtrl.text.trim().isEmpty) {
-        _applySpeciesNotes(_selectedSpeciesId!, force: false);
+      if (!_isCompleted && _selectedSpeciesId != null) {
+        final speciesDoc = _findSpecies(_selectedSpeciesId!);
+        if (speciesDoc != null && _careInstructionsCtrl.text.trim().isEmpty) {
+          final care = _speciesDescription(speciesDoc.data());
+          if (care.isNotEmpty) {
+            _careInstructionsCtrl.text = care;
+          }
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -141,15 +168,21 @@ class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog>
     return (data['name'] ?? data['nome'] ?? fallback).toString();
   }
 
-  String _speciesNotes(Map<String, dynamic> data) {
+  String _speciesDescription(Map<String, dynamic> data) {
     return (data['description'] ??
-        data['notes'] ??
-        data['observations'] ??
-        data['observacoes'] ??
+        data['nome'] ??
         data['descricao'] ??
         '')
         .toString()
         .trim();
+  }
+
+  QueryDocumentSnapshot<Map<String, dynamic>>? _findSpecies(String id) {
+    try {
+      return _speciesDocs.where((doc) => doc.id == id).firstOrNull;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _refreshSpecies({String? selectId}) async {
@@ -167,28 +200,14 @@ class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog>
     });
 
     if (selectId != null && !_isCompleted) {
-      _applySpeciesNotes(selectId, force: true);
+      final speciesDoc = _findSpecies(selectId);
+      if (speciesDoc != null && _careInstructionsCtrl.text.trim().isEmpty) {
+        final care = _speciesDescription(speciesDoc.data());
+        if (care.isNotEmpty) {
+          _careInstructionsCtrl.text = care;
+        }
+      }
     }
-  }
-
-  void _applySpeciesNotes(String speciesId, {required bool force}) {
-    final speciesDoc = _speciesDocs.where((doc) => doc.id == speciesId).cast<QueryDocumentSnapshot<Map<String, dynamic>>?>().firstWhere(
-          (doc) => doc != null,
-          orElse: () => null,
-        );
-    if (speciesDoc == null) return;
-
-    final notes = _speciesNotes(speciesDoc.data());
-    if (notes.isEmpty) return;
-
-    if (force || _parecerCtrl.text.trim().isEmpty || !_speciesLoaded) {
-      _parecerCtrl.text = notes;
-      _parecerCtrl.selection = TextSelection.fromPosition(
-        TextPosition(offset: _parecerCtrl.text.length),
-      );
-    }
-
-    _speciesLoaded = true;
   }
 
   Future<void> _openCreateSpeciesDialog() async {
@@ -227,7 +246,7 @@ class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog>
                 });
 
                 if (!mounted) return;
-                Navigator.of(context).pop();
+                Navigator.of(this.context).pop();
                 await _refreshSpecies(selectId: docRef.id);
 
                 if (!mounted) return;
@@ -297,7 +316,7 @@ class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog>
     );
   }
 
-  Future<void> _finalize() async {
+  Future<void> _confirmAndFinalize() async {
     if (_isCompleted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Essa análise já foi finalizada.')),
@@ -312,22 +331,87 @@ class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog>
       return;
     }
 
-    final parecer = _parecerCtrl.text.trim();
-    if (parecer.isEmpty) {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirmar finalização'),
+        content: const Text(
+          'Ao finalizar esta análise, uma notificação será enviada ao usuário '
+          'informando que o resultado está disponível. Deseja continuar?',
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1F5B3F),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sim, finalizar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _finalize();
+    }
+  }
+
+  Future<void> _finalize() async {
+    if (_isCompleted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preencha as observações da análise.')),
+        const SnackBar(content: Text('Essa análise já foi finalizada.')),
+      );
+      return;
+    }
+
+    final speciesId = (_selectedSpeciesId ?? '').trim();
+    if (speciesId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione uma espécie.')),
       );
       return;
     }
 
     setState(() => _saving = true);
     try {
+      final careInstructions = _careInstructionsCtrl.text.trim();
+      final obsManuseio = _obsManuseioCtrl.text.trim();
+
+      String forageName = _request?['name'] ?? '';
+      String speciesLabel = '';
+      final speciesDoc = _findSpecies(speciesId);
+      if (speciesDoc != null) {
+        speciesLabel = _speciesName(speciesDoc.data(), 'Espécie');
+      }
+
+      final userId = (_request?['user_id'] ?? '').toString();
+
       await _firestore.collection('analysis_requests').doc(widget.requestId).update({
         'status': 'completed',
-        'species_id': _selectedSpeciesId,
-        'parecer': parecer,
+        'species_id': speciesId,
+        'care_instructions': careInstructions.isEmpty ? '' : careInstructions,
+        'admin_notes': obsManuseio.isEmpty ? '' : obsManuseio,
+        'species_name': speciesLabel,
         'completed_at': FieldValue.serverTimestamp(),
       });
+
+      // Send notification to user
+      if (userId.isNotEmpty && forageName.isNotEmpty) {
+        try {
+          await AppNotificationService().notifyUserAnalysisCompleted(
+            analysisId: widget.requestId,
+            userId: userId,
+            forageName: forageName,
+          );
+        } catch (_) {
+          // Don't fail the entire operation if notification fails
+        }
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -374,8 +458,6 @@ class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog>
     if (req == null) {
       return const Center(child: Text('Solicitação não encontrada.'));
     }
-
-    final imageUrl = (req['image_url'] ?? req['photo_url'] ?? req['image'] ?? '').toString();
 
     return Column(
       children: [
@@ -477,27 +559,48 @@ class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Expanded(
-                                    child: DropdownButtonFormField<String>(
-                                      value: _selectedSpeciesId,
-                                      items: _speciesDocs.map((doc) {
-                                        final data = doc.data();
-                                        return DropdownMenuItem<String>(
-                                          value: doc.id,
-                                          child: Text(_speciesName(data, doc.id)),
-                                        );
-                                      }).toList(),
-                                      onChanged: (_saving || _isCompleted)
-                                          ? null
-                                          : (value) {
-                                              if (value == null) return;
-                                              setState(() => _selectedSpeciesId = value);
-                                              _applySpeciesNotes(value, force: true);
-                                            },
-                                      decoration: const InputDecoration(
-                                        labelText: 'Espécie identificada',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                    ),
+                                    child: _speciesDocs.isEmpty
+                                        ? const TextField(
+                                            readOnly: true,
+                                            decoration: InputDecoration(
+                                              labelText: 'Espécie identificada',
+                                              hintText: 'Nenhuma espécie cadastrada',
+                                              border: OutlineInputBorder(),
+                                            ),
+                                          )
+                                        : DropdownButtonFormField<String>(
+                                            initialValue: _selectedSpeciesId != null &&
+                                                    _speciesDocs.any((d) => d.id == _selectedSpeciesId)
+                                                ? _selectedSpeciesId
+                                                : null,
+                                            isExpanded: true,
+                                            items: _speciesDocs.map((doc) {
+                                              final data = doc.data();
+                                              return DropdownMenuItem<String>(
+                                                value: doc.id,
+                                                child: Text(_speciesName(data, doc.id)),
+                                              );
+                                            }).toList(),
+                                            onChanged: (_saving || _isCompleted)
+                                                ? null
+                                                : (value) {
+                                                    if (value == null) return;
+                                                    setState(() => _selectedSpeciesId = value);
+                                                    final sDoc = _findSpecies(value);
+                                                    if (sDoc != null) {
+                                                      final care = _speciesDescription(sDoc.data());
+                                                      if (care.isNotEmpty) {
+                                                        _careInstructionsCtrl.text = care;
+                                                      } else {
+                                                        _careInstructionsCtrl.clear();
+                                                      }
+                                                    }
+                                                  },
+                                            decoration: const InputDecoration(
+                                              labelText: 'Espécie identificada',
+                                              border: OutlineInputBorder(),
+                                            ),
+                                          ),
                                   ),
                                   const SizedBox(width: 12),
                                   SizedBox(
@@ -514,15 +617,24 @@ class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog>
                               ),
                               const SizedBox(height: 12),
                               TextField(
-                                controller: _parecerCtrl,
-                                maxLines: 10,
+                                controller: _careInstructionsCtrl,
+                                maxLines: 4,
                                 readOnly: _saving || _isCompleted,
-                                decoration: InputDecoration(
-                                  labelText: 'Observações / parecer final',
-                                  border: const OutlineInputBorder(),
-                                  helperText: _isCompleted
-                                      ? 'Análise bloqueada após finalização.'
-                                      : 'Ao selecionar uma espécie, as observações padrão são preenchidas automaticamente.',
+                                decoration: const InputDecoration(
+                                  labelText: 'Cuidados recomendados',
+                                  border: OutlineInputBorder(),
+                                  helperText: 'Descrição da espécie. Edite se necessário.',
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _obsManuseioCtrl,
+                                maxLines: 4,
+                                readOnly: _saving || _isCompleted,
+                                decoration: const InputDecoration(
+                                  labelText: 'Observações de manuseio',
+                                  border: OutlineInputBorder(),
+                                  hintText: 'Observações livres do analista...',
                                 ),
                               ),
                             ],
@@ -539,7 +651,7 @@ class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog>
                     children: [
                       Expanded(
                         child: _panel(
-                          title: 'Imagem enviada',
+                          title: 'Imagens enviadas',
                           child: Container(
                             width: double.infinity,
                             decoration: BoxDecoration(
@@ -547,19 +659,101 @@ class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog>
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(color: const Color(0x14000000)),
                             ),
-                            child: imageUrl.isEmpty
-                                ? const Center(child: Text('Imagem não disponível'))
-                                : ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Image.network(
-                                      imageUrl,
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (_, __, ___) {
-                                        return const Center(
-                                          child: Text('Não foi possível carregar a imagem'),
-                                        );
-                                      },
+                            child: _resolvedImageUrls.isEmpty || _allImagesFailed
+                                ? const Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.image_not_supported_outlined, size: 48, color: Colors.grey),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'Imagem não disponível',
+                                          style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
                                     ),
+                                  )
+                                : Column(
+                                    children: [
+                                      Expanded(
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(16),
+                                          child: Image.network(
+                                            _resolvedImageUrls[_mainImageIndex.clamp(0, _resolvedImageUrls.length - 1)],
+                                            width: double.infinity,
+                                            fit: BoxFit.contain,
+                                            loadingBuilder: (context, child, loadingProgress) {
+                                              if (loadingProgress == null) return child;
+                                              return Center(
+                                                child: CircularProgressIndicator(
+                                                  value: loadingProgress.expectedTotalBytes != null
+                                                      ? loadingProgress.cumulativeBytesLoaded /
+                                                          loadingProgress.expectedTotalBytes!
+                                                      : null,
+                                                ),
+                                              );
+                                            },
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return const Center(
+                                                child: Text('Erro ao carregar imagem'),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                      if (_resolvedImageUrls.length > 1) ...[
+                                        const SizedBox(height: 10),
+                                        SizedBox(
+                                          height: 70,
+                                          child: ListView.separated(
+                                            scrollDirection: Axis.horizontal,
+                                            itemCount: _resolvedImageUrls.length,
+                                            separatorBuilder: (_, __) => const SizedBox(width: 8),
+                                            itemBuilder: (context, index) {
+                                              final isSelected = index == _mainImageIndex;
+                                              return GestureDetector(
+                                                onTap: () {
+                                                  if (index != _mainImageIndex) {
+                                                    setState(() => _mainImageIndex = index);
+                                                  }
+                                                },
+                                                child: ClipRRect(
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  child: Stack(
+                                                    children: [
+                                                      Image.network(
+                                                        _resolvedImageUrls[index],
+                                                        width: 70,
+                                                        height: 70,
+                                                        fit: BoxFit.cover,
+                                                        errorBuilder: (_, __, ___) => Container(
+                                                          width: 70,
+                                                          height: 70,
+                                                          color: Colors.grey.shade200,
+                                                          child: const Icon(Icons.broken_image),
+                                                        ),
+                                                      ),
+                                                      if (isSelected)
+                                                        Positioned.fill(
+                                                          child: Container(
+                                                            decoration: BoxDecoration(
+                                                              border: Border.all(
+                                                                color: const Color(0xFF1F5B3F),
+                                                                width: 3,
+                                                              ),
+                                                              borderRadius: BorderRadius.circular(8),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                           ),
                         ),
@@ -591,7 +785,7 @@ class _AdminRequestAnalysisDialogState extends State<AdminRequestAnalysisDialog>
               ),
               const SizedBox(width: 12),
               ElevatedButton.icon(
-                onPressed: (_saving || _isCompleted) ? null : _finalize,
+                onPressed: (_saving || _isCompleted) ? null : _confirmAndFinalize,
                 icon: _saving
                     ? const SizedBox(
                         width: 16,

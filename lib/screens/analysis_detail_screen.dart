@@ -240,7 +240,7 @@ class AnalysisDetailScreen extends StatelessWidget {
             value: analysis.speciesName!,
             color: Colors.green,
           ),
-        if (analysis.careInstructions != null) ...[
+        if (analysis.careInstructions != null && analysis.careInstructions!.isNotEmpty) ...[
           const SizedBox(height: 10),
           _buildResultCard(
             icon: Icons.eco_outlined,
@@ -249,11 +249,11 @@ class AnalysisDetailScreen extends StatelessWidget {
             color: Colors.teal,
           ),
         ],
-        if (analysis.adminNotes != null) ...[
+        if (analysis.adminNotes != null && analysis.adminNotes!.isNotEmpty) ...[
           const SizedBox(height: 10),
           _buildResultCard(
             icon: Icons.comment_outlined,
-            label: 'Observações do analista',
+            label: 'Observações de manuseio',
             value: analysis.adminNotes!,
             color: Colors.blue,
           ),
