@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../services/user_service.dart';
-import 'admin/admin_dashboard_page.dart';
+import 'admin/admin_home_page.dart';
 import 'admin/admin_login_page.dart';
 import 'login_screen.dart';
 import 'main_screen.dart';
@@ -60,7 +60,7 @@ class AppBootstrapPage extends StatelessWidget {
 
             if (kIsWeb) {
               if (role == 'admin') {
-                return const AdminDashboardPage();
+                return const AdminHomePage();
               }
 
               return _AccessDeniedPage(
