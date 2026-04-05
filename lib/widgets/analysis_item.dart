@@ -7,7 +7,10 @@ class AnalysisItem extends StatelessWidget {
   final String date;
   final String status;
   final VoidCallback? onTap;
-  final String imageAsset;
+
+  /// URL da primeira imagem da análise (capa).
+  /// Se nulo ou vazio, exibe ícone de placeholder.
+  final String? coverImageUrl;
 
   const AnalysisItem({
     Key? key,
@@ -15,7 +18,7 @@ class AnalysisItem extends StatelessWidget {
     required this.date,
     required this.status,
     this.onTap,
-    this.imageAsset = 'assets/images/grass.jpg',
+    this.coverImageUrl,
   }) : super(key: key);
 
   Color getStatusColor() {
@@ -38,20 +41,24 @@ class AnalysisItem extends StatelessWidget {
         onTap: onTap,
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.asset(imageAsset, width: 64, height: 64, fit: BoxFit.cover),
-            ),
+            _buildCover(),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(date, style: const TextStyle(fontSize: 12, color: AppColors.gray)),
+                  Text(
+                    date,
+                    style: const TextStyle(fontSize: 12, color: AppColors.gray),
+                  ),
                 ],
               ),
             ),
@@ -69,10 +76,53 @@ class AnalysisItem extends StatelessWidget {
                   fontSize: 12,
                 ),
               ),
-            )
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCover() {
+    final hasUrl = coverImageUrl != null && coverImageUrl!.isNotEmpty;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        width: 64,
+        height: 64,
+        child: hasUrl
+            ? Image.network(
+          coverImageUrl!,
+          width: 64,
+          height: 64,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            return Container(
+              color: Colors.grey.shade100,
+              child: const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            );
+          },
+          errorBuilder: (_, __, ___) => _placeholder(),
+        )
+            : _placeholder(),
+      ),
+    );
+  }
+
+  Widget _placeholder() {
+    return Container(
+      width: 64,
+      height: 64,
+      color: Colors.grey.shade200,
+      child: const Icon(Icons.grass, color: Colors.grey, size: 32),
     );
   }
 }
