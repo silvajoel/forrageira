@@ -26,6 +26,7 @@ import 'services/navigation_service.dart';
 import 'screens/admin/admin_login_page.dart';
 import 'screens/admin/admin_home_page.dart';
 import 'screens/app_bootstrap_page.dart';
+import 'package:forrageira/screens/admin/reset_password_page.dart';
 
 /// HANDLER GLOBAL (OBRIGATÓRIO)
 @pragma('vm:entry-point')
@@ -96,6 +97,7 @@ class MyApp extends StatelessWidget {
         ),
         '/profile': (context) => const ProfileScreen(),
         '/admin-login': (context) => const AdminLoginPage(),
+        '/reset-password': (context) => const ResetPasswordPage(),
         '/admin': (context) => const AdminHomePage(),
       },
     );

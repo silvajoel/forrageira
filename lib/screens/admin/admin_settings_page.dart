@@ -34,6 +34,15 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
     super.initState();
     nomeCtrl = TextEditingController();
     emailCtrl = TextEditingController();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _authService.syncCurrentUserEmailToFirestore();
+      if (mounted) {
+        setState(() {
+          _filledOnce = false;
+        });
+      }
+    });
   }
 
   @override
@@ -89,12 +98,14 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
                 final data = snapshot.data!.data() ?? {};
                 final name = (data['name'] ?? '') as String;
-                final email = (data['email'] ?? '') as String;
+                final firestoreEmail = (data['email'] ?? '') as String;
+                final authEmail = (_auth.currentUser?.email ?? '').trim().toLowerCase();
+
+                final emailToShow = authEmail.isNotEmpty ? authEmail : firestoreEmail;
 
                 if (!_filledOnce) {
                   nomeCtrl.text = name;
-                  emailCtrl.text =
-                  email.isNotEmpty ? email : (_auth.currentUser?.email ?? '');
+                  emailCtrl.text = emailToShow;
                   _filledOnce = true;
                 }
 
@@ -217,11 +228,18 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
   Future<void> _save(String uid) async {
     final nome = nomeCtrl.text.trim();
-    final email = emailCtrl.text.trim();
+    final email = emailCtrl.text.trim().toLowerCase();
 
     final currentPass = currentPassCtrl.text.trim();
     final newPass = newPassCtrl.text.trim();
     final confirmNewPass = confirmNewPassCtrl.text.trim();
+
+    final authEmail = (_auth.currentUser?.email ?? '').trim().toLowerCase();
+    final emailChanged = authEmail != email;
+
+    final wantsChangePassword = currentPass.isNotEmpty ||
+        newPass.isNotEmpty ||
+        confirmNewPass.isNotEmpty;
 
     if (nome.isEmpty || email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -230,49 +248,76 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       return;
     }
 
+    if (emailChanged && currentPass.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Para alterar o e-mail, informe sua senha atual.'),
+        ),
+      );
+      return;
+    }
+
+    if (emailChanged && (newPass.isNotEmpty || confirmNewPass.isNotEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Altere o e-mail e a senha separadamente para evitar inconsistências.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (wantsChangePassword && !emailChanged) {
+      if (currentPass.isEmpty || newPass.isEmpty || confirmNewPass.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Preencha senha atual, nova senha e confirmação.'),
+          ),
+        );
+        return;
+      }
+
+      if (newPass.length < 6) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nova senha muito curta (mínimo 6).'),
+          ),
+        );
+        return;
+      }
+
+      if (newPass != confirmNewPass) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('A nova senha e a confirmação não são iguais.'),
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() => saving = true);
 
     try {
-      // 1) Atualiza nome no Firestore
-      await _userService.updateProfile(uid: uid, name: nome, email: email);
+      await _userService.updateProfile(
+        uid: uid,
+        name: nome,
+        email: authEmail.isNotEmpty ? authEmail : email,
+      );
 
-      // 2) Atualiza e-mail via UserService (envia verificação se mudou)
-      await _userService.updateEmail(uid: uid, newEmail: email);
+      if (emailChanged) {
+        await _authService.updateLoginEmail(
+          currentPassword: currentPass,
+          newEmail: email,
+        );
+      }
 
-      // 3) Troca senha (se usuário preencheu qualquer campo de senha)
-      final wantsChangePassword = currentPass.isNotEmpty ||
-          newPass.isNotEmpty ||
-          confirmNewPass.isNotEmpty;
-
-      if (wantsChangePassword) {
-        if (currentPass.isEmpty || newPass.isEmpty || confirmNewPass.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Preencha senha atual, nova senha e confirmação.'),
-            ),
-          );
-          return;
-        }
-
-        if (newPass.length < 6) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Nova senha muito curta (mínimo 6).')),
-          );
-          return;
-        }
-
-        if (newPass != confirmNewPass) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('A nova senha e a confirmação não são iguais.')),
-          );
-          return;
-        }
-
+      if (wantsChangePassword && !emailChanged) {
         await _authService.resetPasswordFromCurrentPassword(
           currentPassword: currentPass,
           newPassword: newPass,
-          email: email,
+          email: authEmail,
         );
 
         currentPassCtrl.clear();
@@ -282,36 +327,46 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
       if (!mounted) return;
 
-      final authEmail = _auth.currentUser?.email ?? '';
-      final emailChanged = authEmail != email;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             emailChanged
-                ? 'Dados salvos! Verifique o novo e-mail para confirmar a troca.'
+                ? 'Nome atualizado. Verifique o novo e-mail para confirmar a troca.'
                 : 'Dados atualizados com sucesso!',
           ),
         ),
       );
     } on FirebaseAuthException catch (e) {
-      String msg = 'Dados salvos, mas não foi possível atualizar e-mail/senha.';
+      String msg = 'Não foi possível salvar as alterações.';
 
-      if (e.code == 'requires-recent-login') {
-        msg =
-        'Para mudar e-mail/senha, faça login novamente e tente de novo.';
-      } else if (e.code == 'wrong-password') {
-        msg = 'Senha atual incorreta.';
-      } else if (e.code == 'email-already-in-use') {
-        msg = 'Este e-mail já está em uso por outra conta.';
+      switch (e.code) {
+        case 'email-already-in-use':
+          msg = 'Esse e-mail já está sendo usado por outra conta.';
+          break;
+        case 'wrong-password':
+          msg = 'Senha atual incorreta.';
+          break;
+        case 'invalid-email':
+          msg = 'E-mail inválido.';
+          break;
+        case 'same-email':
+          msg = 'Informe um e-mail diferente do atual.';
+          break;
+        case 'requires-recent-login':
+          msg = 'Faça login novamente antes de alterar e-mail ou senha.';
+          break;
+        default:
+          msg = e.message ?? 'Erro ao atualizar os dados.';
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erro ao salvar. Tente novamente.')),
+        SnackBar(content: Text('Erro ao salvar: $e')),
       );
     } finally {
       if (mounted) setState(() => saving = false);

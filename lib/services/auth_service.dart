@@ -17,7 +17,7 @@ class AuthService extends ChangeNotifier {
 
   void _authCheck() {
     _auth.authStateChanges().listen((User? user) {
-      _currentUser = user; // salva no estado
+      _currentUser = user;
       isLoading = false;
       notifyListeners();
     });
@@ -30,7 +30,6 @@ class AuthService extends ChangeNotifier {
     if (uid == null) return null;
 
     final doc = await _firestore.collection('users').doc(uid).get();
-
     return doc.data()?['name'];
   }
 
@@ -67,8 +66,136 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  // Fluxo atual do app
   Future<void> resetPassword(String email) async {
     await _auth.sendPasswordResetEmail(email: email);
+  }
+
+  // Fluxo específico do WEB ADMIN
+  Future<void> updateLoginEmail({
+    required String currentPassword,
+    required String newEmail,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'user-not-authenticated',
+        message: 'Usuário não autenticado.',
+      );
+    }
+
+    final currentEmail = user.email?.trim().toLowerCase();
+    final normalizedNewEmail = newEmail.trim().toLowerCase();
+
+    if (currentEmail == null || currentEmail.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'missing-current-email',
+        message: 'E-mail atual não encontrado.',
+      );
+    }
+
+    if (normalizedNewEmail.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'invalid-new-email',
+        message: 'Informe o novo e-mail.',
+      );
+    }
+
+    if (normalizedNewEmail == currentEmail) {
+      throw FirebaseAuthException(
+        code: 'same-email',
+        message: 'O novo e-mail é igual ao atual.',
+      );
+    }
+
+    final existing = await _firestore
+        .collection('users')
+        .where('email', isEqualTo: normalizedNewEmail)
+        .limit(1)
+        .get();
+
+    if (existing.docs.isNotEmpty && existing.docs.first.id != user.uid) {
+      throw FirebaseAuthException(
+        code: 'email-already-in-use',
+        message: 'Já existe uma conta cadastrada com esse e-mail.',
+      );
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: currentEmail,
+      password: currentPassword,
+    );
+
+    await user.reauthenticateWithCredential(credential);
+
+    await user.verifyBeforeUpdateEmail(
+      normalizedNewEmail,
+      ActionCodeSettings(
+        url: 'https://forrageira-963b0.web.app/#/admin-login',
+        handleCodeInApp: false,
+      ),
+    );
+
+    await user.reload();
+    _currentUser = _auth.currentUser;
+    notifyListeners();
+  }
+
+  Future<bool> canSendAdminResetPassword(String email) async {
+    final result = await _firestore
+        .collection('users')
+        .where('email', isEqualTo: email.trim().toLowerCase())
+        .limit(1)
+        .get();
+
+    if (result.docs.isEmpty) return false;
+
+    final data = result.docs.first.data();
+    final role = (data['role'] ?? '').toString().toLowerCase();
+    final active = data['active'] == true;
+
+    return role == 'admin' && active;
+  }
+
+  Future<void> sendPasswordResetForWeb(String email) async {
+    await _auth.setLanguageCode('pt-BR');
+
+    await _auth.sendPasswordResetEmail(
+      email: email,
+      actionCodeSettings: ActionCodeSettings(
+        url: 'https://forrageira-963b0.web.app/#/reset-password',
+        handleCodeInApp: false,
+      ),
+    );
+  }
+
+  Future<String> verifyResetCode(String oobCode) async {
+    return await _auth.verifyPasswordResetCode(oobCode);
+  }
+
+  Future<void> confirmNewPassword({
+    required String oobCode,
+    required String newPassword,
+  }) async {
+    await _auth.confirmPasswordReset(
+      code: oobCode,
+      newPassword: newPassword,
+    );
+  }
+  Future<void> syncCurrentUserEmailToFirestore() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final authEmail = user.email?.trim().toLowerCase();
+    if (authEmail == null || authEmail.isEmpty) return;
+
+    await _firestore.collection('users').doc(user.uid).update({
+      'email': authEmail,
+    });
+
+    await user.reload();
+    _currentUser = _auth.currentUser;
+    notifyListeners();
   }
 
   Future<void> updateUsername(String username) async {
@@ -76,13 +203,9 @@ class AuthService extends ChangeNotifier {
 
     final uid = _currentUser!.uid;
 
-    // Atualiza no Firebase Auth
     await _currentUser!.updateDisplayName(username);
-
-    // Atualiza no Firestore
     await _firestore.collection('users').doc(uid).update({'name': username});
 
-    // Recarrega usuário
     await _currentUser!.reload();
     _currentUser = _auth.currentUser;
 

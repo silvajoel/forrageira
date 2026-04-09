@@ -72,7 +72,8 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         return;
       }
 
-      final active = UserService.isProfileActive(profile);
+      final role = (profile['role'] ?? '').toString().toLowerCase();
+      final active = profile['active'] == true;
 
       if (!active) {
         await _auth.logout();
@@ -84,15 +85,12 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         return;
       }
 
-      if (!UserService.isAdminRole(profile)) {
+      if (role != 'admin') {
         await _auth.logout();
         if (!mounted) return;
         setState(() {
           loading = false;
-          error = 'Acesso negado: o perfil em users não é admin.\n'
-              'No Firestore, o ID do documento em "users" deve ser o mesmo UID '
-              'que aparece em Authentication → Users (não use ID aleatório). '
-              'O campo deve ser role = "admin".';
+          error = 'Acesso negado. Essa conta não é administradora.';
         });
         return;
       }
@@ -132,7 +130,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         loading = false;
         error = msg;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       setState(() {
@@ -140,6 +138,130 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         error = 'Erro inesperado. Tente novamente.';
       });
     }
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final resetEmailCtrl = TextEditingController(text: emailCtrl.text.trim());
+    bool sending = false;
+    String? dialogError;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setLocalState) {
+            return AlertDialog(
+              title: const Text('Recuperar senha'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Informe seu e-mail para receber o link de recuperação.',
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: resetEmailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'E-mail',
+                      prefixIcon: Icon(Icons.mail_outline),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  if (dialogError != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      dialogError!,
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: sending ? null : () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: sending
+                      ? null
+                      : () async {
+                    final email = resetEmailCtrl.text.trim().toLowerCase();
+
+                    if (email.isEmpty) {
+                      setLocalState(() {
+                        dialogError = 'Informe o e-mail.';
+                      });
+                      return;
+                    }
+
+                    setLocalState(() {
+                      sending = true;
+                      dialogError = null;
+                    });
+
+                    try {
+                      final canReset = await _auth.canSendAdminResetPassword(email);
+
+                      if (!canReset) {
+                        setLocalState(() {
+                          sending = false;
+                          dialogError = 'Não existe conta administradora ativa com esse e-mail.';
+                        });
+                        return;
+                      }
+
+                      await _auth.sendPasswordResetForWeb(email);
+
+                      if (!mounted) return;
+                      Navigator.pop(context);
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'O link de recuperação foi enviado para o e-mail informado.',
+                          ),
+                        ),
+                      );
+                    } on FirebaseAuthException catch (e) {
+                      String msg = 'Erro ao enviar link de recuperação.';
+
+                      switch (e.code) {
+                        case 'invalid-email':
+                          msg = 'E-mail inválido.';
+                          break;
+                        default:
+                          msg = 'Não foi possível enviar o e-mail.';
+                      }
+
+                      setLocalState(() {
+                        sending = false;
+                        dialogError = msg;
+                      });
+                    } catch (_) {
+                      setLocalState(() {
+                        sending = false;
+                        dialogError = 'Erro inesperado. Tente novamente.';
+                      });
+                    }
+                  },
+                  child: sending
+                      ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                      : const Text('Enviar link'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    resetEmailCtrl.dispose();
   }
 
   Widget _buildLoginForm() {
@@ -222,6 +344,18 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                     : const Text('Entrar'),
               ),
             ),
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: loading ? null : _showForgotPasswordDialog,
+              child: const Text(
+                'Esqueci a senha',
+                style: TextStyle(
+                  color: Color(0xFF1565C0),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -267,9 +401,9 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
             }
 
             final profile = profileSnapshot.data;
-            final isAdmin = UserService.isAdminRole(profile);
-            final isActive =
-                profile != null && UserService.isProfileActive(profile);
+            final isAdmin =
+                (profile?['role'] ?? '').toString().toLowerCase() == 'admin';
+            final isActive = profile?['active'] == true;
 
             if (profile != null && isAdmin && isActive) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
