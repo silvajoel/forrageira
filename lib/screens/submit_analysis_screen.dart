@@ -92,7 +92,8 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
 
   Future<void> _takePhoto() async {
     if (_selectedImages.length >= _maxImages) {
-      _showSnack('Voce ja concluiu as $_maxImages fotos obrigatorias.');
+      _showSnack(
+          'Voc\u00ea j\u00e1 concluiu as $_maxImages fotos obrigat\u00f3rias.');
       return;
     }
 
@@ -104,7 +105,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     final remaining = _remainingImages;
     _showSnack(
       remaining == 0
-          ? '5/5 fotos capturadas. Voce ja pode enviar a analise.'
+          ? '5/5 fotos capturadas. Voc\u00ea j\u00e1 pode enviar a an\u00e1lise.'
           : '${_selectedImages.length}/$_maxImages fotos capturadas. Faltam $remaining.',
     );
   }
@@ -125,18 +126,18 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedImages.length < _minImages) {
-      _showSnack('Envie no minimo $_minImages imagens.');
+      _showSnack('Envie no m\u00ednimo $_minImages imagens.');
       return;
     }
 
     if (_selectedImages.length > _maxImages) {
-      _showSnack('Envie no maximo $_maxImages imagens.');
+      _showSnack('Envie no m\u00e1ximo $_maxImages imagens.');
       return;
     }
 
     final uid = _userId;
     if (uid == null) {
-      _showSnack('Usuario nao autenticado.');
+      _showSnack('Usu\u00e1rio n\u00e3o autenticado.');
       return;
     }
 
@@ -174,7 +175,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
         );
 
         _showSnack(
-          'Analise salva offline. Ela sera encaminhada assim que houver internet.',
+          'An\u00e1lise salva offline. Ela ser\u00e1 encaminhada assim que houver internet.',
         );
       }
 
@@ -212,7 +213,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
           children: [
             Icon(Icons.grass),
             SizedBox(width: 8),
-            Text('Nova analise'),
+            Text('Nova an\u00e1lise'),
           ],
         ),
       ),
@@ -225,14 +226,14 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Nova analise',
+                  'Nova an\u00e1lise',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Tire 5 fotos obrigatorias da forrageira para enviar a solicitacao.',
+                  'Tire 5 fotos obrigat\u00f3rias da forrageira para enviar a solicita\u00e7\u00e3o.',
                   style: theme.textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 24),
@@ -246,7 +247,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
                 const SizedBox(height: 16),
                 AppTextField(
                   controller: _notesController,
-                  label: 'Observacoes',
+                  label: 'Observa\u00e7\u00f5es',
                   icon: Icons.note_alt_outlined,
                   maxLines: 3,
                 ),
@@ -278,7 +279,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
                     icon: const Icon(Icons.camera_alt_outlined),
                     label: Text(
                       isCaptureComplete
-                          ? '5 fotos concluidas'
+                          ? '5 fotos conclu\u00eddas'
                           : 'Tirar foto ($captured/$_maxImages)',
                     ),
                   ),
@@ -332,7 +333,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Fotos obrigatorias',
+                  'Fotos obrigat\u00f3rias',
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -401,8 +402,8 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
           const SizedBox(height: 8),
           Text(
             queueService.isSyncing
-                ? 'Estamos tentando sincronizar suas analises pendentes.'
-                : 'Essas analises serao enviadas automaticamente quando a conexao voltar.',
+                ? 'Estamos tentando sincronizar suas an\u00e1lises pendentes.'
+                : 'Essas an\u00e1lises ser\u00e3o enviadas automaticamente quando a conex\u00e3o voltar.',
           ),
           const SizedBox(height: 12),
           Align(
@@ -452,14 +453,14 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Guia rapido do primeiro envio',
+                      'Guia r\u00e1pido do primeiro envio',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Use estas referencias para capturar fotos mais nitidas e ajudar na identificacao.',
+                      'Use estas refer\u00eancias para capturar fotos mais n\u00edtidas e ajudar na identifica\u00e7\u00e3o.',
                       style: theme.textTheme.bodyMedium,
                     ),
                   ],
@@ -486,7 +487,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
                 _TutorialPhotoCard(
                   number: '2',
                   title: 'Vista lateral',
-                  subtitle: 'Mostre a espiga ou inflorescencia de lado.',
+                  subtitle: 'Mostre a espiga ou infloresc\u00eancia de lado.',
                   hint: 'Tente enquadrar sem cortar a ponta.',
                   icon: Icons.rotate_90_degrees_ccw,
                   imagePath: 'assets/images/tutorial_vista_lateral.png',
@@ -537,7 +538,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
           _buildGuidelineItem(
             icon: Icons.wb_sunny_outlined,
             title: 'Dica geral',
-            description: 'Use luz natural e mantenha a camera firme.',
+            description: 'Use luz natural e mantenha a c\u00e2mera firme.',
           ),
           _buildGuidelineItem(
             icon: Icons.filter_1_outlined,

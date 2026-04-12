@@ -14,7 +14,7 @@ class AnalysisScreen extends StatelessWidget {
   String _statusLabel(String status) {
     switch (status) {
       case 'pending':
-        return 'Em analise';
+        return 'Em an\u00e1lise';
       case 'completed':
         return 'Finalizado';
       case 'queued_offline':
@@ -65,7 +65,7 @@ class AnalysisScreen extends StatelessWidget {
           children: [
             Icon(Icons.grass),
             SizedBox(width: 8),
-            Text('Minhas analises'),
+            Text('Minhas an\u00e1lises'),
           ],
         ),
         actions: const [
@@ -86,7 +86,7 @@ class AnalysisScreen extends StatelessWidget {
                   children: [
                     const SizedBox(height: 20),
                     Text(
-                      'Minhas analises',
+                      'Minhas an\u00e1lises',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -94,7 +94,7 @@ class AnalysisScreen extends StatelessWidget {
                     if (offlineItems.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Text(
-                        '${offlineItems.length} analise(s) estao aguardando internet.',
+                        '${offlineItems.length} an\u00e1lise(s) est\u00e3o aguardando internet.',
                         style: theme.textTheme.bodySmall,
                       ),
                     ],
@@ -126,7 +126,7 @@ class AnalysisScreen extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsets.all(20),
                       child: Center(
-                        child: Text('Nenhuma analise enviada ainda.'),
+                        child: Text('Nenhuma an\u00e1lise enviada ainda.'),
                       ),
                     ),
                   );

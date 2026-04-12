@@ -395,14 +395,16 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
                         DataCell(
                           Row(
                             children: [
-                              TextButton(
+                              OutlinedButton.icon(
                                 onPressed: () => _openSpeciesDialog(
                                   docId: doc.id,
                                   initialName: name,
                                   initialDescription: description,
                                 ),
-                                child: const Text('Editar'),
+                                icon: const Icon(Icons.edit_outlined, size: 18),
+                                label: const Text('Editar'),
                               ),
+                              const SizedBox(width: 8),
                               TextButton(
                                 onPressed: () => _confirmDeactivateOrReactivate(
                                   docId: doc.id,

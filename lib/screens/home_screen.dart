@@ -26,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _statusLabel(String status) {
     switch (status) {
       case 'pending':
-        return 'Em analise';
+        return 'Em an\u00e1lise';
       case 'completed':
         return 'Finalizado';
       case 'queued_offline':
@@ -71,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final queueService = context.watch<PendingAnalysisQueueService>();
 
     final user = authService.currentUser;
-    final username = user?.displayName ?? 'Usuario';
+    final username = user?.displayName ?? 'Usu\u00e1rio';
     final userId = user?.uid ?? '';
     final offlineItems = _buildOfflineAnalyses(queueService, userId);
 
@@ -119,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Veja suas analises recentes abaixo.',
+                                  'Veja suas an\u00e1lises recentes abaixo.',
                                   style: theme.textTheme.bodySmall,
                                 ),
                               ],
@@ -146,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                '${offlineItems.length} analise(s) aguardando internet para envio.',
+                                '${offlineItems.length} an\u00e1lise(s) aguardando internet para envio.',
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -161,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Minhas Analises',
+                          'Minhas An\u00e1lises',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -204,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Padding(
                       padding: EdgeInsets.all(20),
                       child: Center(
-                        child: Text('Nenhuma analise enviada ainda.'),
+                        child: Text('Nenhuma an\u00e1lise enviada ainda.'),
                       ),
                     ),
                   );
@@ -309,7 +309,8 @@ class _NotificationBellButtonState extends State<_NotificationBellButton> {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Voce tem novas notificacoes.'),
+              content:
+                  const Text('Voc\u00ea tem novas notifica\u00e7\u00f5es.'),
               duration: const Duration(seconds: 5),
               action: SnackBarAction(
                 label: 'Abrir',
@@ -354,7 +355,7 @@ class _NotificationBellButtonState extends State<_NotificationBellButton> {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      tooltip: 'Notificacoes',
+      tooltip: 'Notifica\u00e7\u00f5es',
       icon: Stack(
         clipBehavior: Clip.none,
         children: [

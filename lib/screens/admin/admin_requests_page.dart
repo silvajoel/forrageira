@@ -227,10 +227,10 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                               ),
                             ),
                             DataCell(
-                              IconButton(
-                                tooltip: 'Abrir solicitacao',
+                              OutlinedButton.icon(
                                 onPressed: () => _openRequest(doc.id),
-                                icon: const Icon(Icons.open_in_new),
+                                icon: const Icon(Icons.open_in_new, size: 18),
+                                label: const Text('Abrir'),
                               ),
                             ),
                           ],

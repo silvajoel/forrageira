@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../theme/app_colors.dart';
 import 'rounded_card.dart';
 
@@ -7,9 +8,6 @@ class AnalysisItem extends StatelessWidget {
   final String date;
   final String status;
   final VoidCallback? onTap;
-
-  /// URL da primeira imagem da análise (capa).
-  /// Se nulo ou vazio, exibe ícone de placeholder.
   final String? coverImageUrl;
 
   const AnalysisItem({
@@ -24,9 +22,11 @@ class AnalysisItem extends StatelessWidget {
   Color getStatusColor() {
     switch (status.toLowerCase()) {
       case 'finalizado':
-        return Colors.green;
-      case 'em análise':
-        return Colors.orange;
+        return const Color(0xFF2E7D32);
+      case 'em an\u00e1lise':
+        return const Color(0xFFF9A825);
+      case 'aguardando internet':
+        return const Color(0xFF1565C0);
       default:
         return AppColors.gray;
     }
@@ -65,7 +65,7 @@ class AnalysisItem extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: getStatusColor().withOpacity(0.12),
+                color: getStatusColor().withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -93,25 +93,25 @@ class AnalysisItem extends StatelessWidget {
         height: 64,
         child: hasUrl
             ? Image.network(
-          coverImageUrl!,
-          width: 64,
-          height: 64,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child;
-            return Container(
-              color: Colors.grey.shade100,
-              child: const Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            );
-          },
-          errorBuilder: (_, __, ___) => _placeholder(),
-        )
+                coverImageUrl!,
+                width: 64,
+                height: 64,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
+                    color: Colors.grey.shade100,
+                    child: const Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (_, __, ___) => _placeholder(),
+              )
             : _placeholder(),
       ),
     );

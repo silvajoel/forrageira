@@ -11,6 +11,16 @@ import 'main_screen.dart';
 class AppBootstrapPage extends StatelessWidget {
   const AppBootstrapPage({super.key});
 
+  Future<Map<String, dynamic>?> _loadProfile(String uid) async {
+    try {
+      return await UserService().getProfile(uid).timeout(
+            const Duration(seconds: 6),
+          );
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -27,7 +37,7 @@ class AppBootstrapPage extends StatelessWidget {
         }
 
         return FutureBuilder<Map<String, dynamic>?>(
-          future: UserService().getProfile(user.uid),
+          future: _loadProfile(user.uid),
           builder: (context, profileSnapshot) {
             if (profileSnapshot.connectionState == ConnectionState.waiting) {
               return const _BootstrapScaffold();
@@ -35,11 +45,16 @@ class AppBootstrapPage extends StatelessWidget {
 
             final profile = profileSnapshot.data;
 
+            if (!kIsWeb && profile == null) {
+              // Permite uso offline do app mobile para usuarios ja autenticados.
+              return const MainScreen();
+            }
+
             if (profile == null) {
               return _AccessDeniedPage(
-                title: 'Perfil não encontrado',
+                title: 'Perfil n\u00e3o encontrado',
                 message:
-                'Sua conta foi autenticada, mas o cadastro correspondente não foi localizado no banco.',
+                    'Sua conta foi autenticada, mas o cadastro correspondente n\u00e3o foi localizado no banco.',
                 actionLabel: 'Sair',
                 onAction: () => FirebaseAuth.instance.signOut(),
               );
@@ -52,7 +67,7 @@ class AppBootstrapPage extends StatelessWidget {
               return _AccessDeniedPage(
                 title: 'Conta inativa',
                 message:
-                'Seu acesso está desativado no momento. Procure o administrador do sistema.',
+                    'Seu acesso est\u00e1 desativado no momento. Procure o administrador do sistema.',
                 actionLabel: 'Sair',
                 onAction: () => FirebaseAuth.instance.signOut(),
               );
@@ -66,7 +81,7 @@ class AppBootstrapPage extends StatelessWidget {
               return _AccessDeniedPage(
                 title: 'Acesso restrito',
                 message:
-                'O painel web é destinado apenas a administradores. Entre com uma conta admin ou use o app do usuário.',
+                    'O painel web \u00e9 destinado apenas a administradores. Entre com uma conta admin ou use o app do usu\u00e1rio.',
                 actionLabel: 'Sair',
                 onAction: () => FirebaseAuth.instance.signOut(),
               );
@@ -76,7 +91,7 @@ class AppBootstrapPage extends StatelessWidget {
               return _AccessDeniedPage(
                 title: 'Conta administrativa',
                 message:
-                'Essa conta é administrativa e deve acessar o painel web, não o aplicativo mobile.',
+                    'Essa conta \u00e9 administrativa e deve acessar o painel web, n\u00e3o o aplicativo mobile.',
                 actionLabel: 'Sair',
                 onAction: () => FirebaseAuth.instance.signOut(),
               );
