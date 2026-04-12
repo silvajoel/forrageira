@@ -62,5 +62,8 @@ flutter_native_splash:
 flutter:
   assets:
     - assets/images/grass.jpg
+    - assets/images/tutorial_folha_colmo.png
+    - assets/images/tutorial_vista_lateral.png
+    - assets/images/tutorial_vista_frontal.png
 
   uses-material-design: true

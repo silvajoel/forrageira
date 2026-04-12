@@ -13,8 +13,8 @@ class AnalysisDetailScreen extends StatelessWidget {
 
   String _formatDate(DateTime? date) {
     if (date == null) return '';
-    return "${date.day}/${date.month}/${date.year} "
-        "${date.hour}:${date.minute.toString().padLeft(2, '0')}";
+    return '${date.day}/${date.month}/${date.year} '
+        '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -35,7 +35,7 @@ class AnalysisDetailScreen extends StatelessWidget {
           children: [
             Icon(Icons.grass),
             SizedBox(width: 8),
-            Text('Detalhe da AnÃ¡lise'),
+            Text('Detalhe da analise'),
           ],
         ),
       ),
@@ -101,7 +101,7 @@ class AnalysisDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  isCompleted ? 'AnÃ¡lise finalizada' : 'Em anÃ¡lise',
+                  isCompleted ? 'Analise finalizada' : 'Em analise',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: isCompleted ? Colors.green : Colors.orange,
                     fontWeight: FontWeight.w500,
@@ -122,7 +122,7 @@ class AnalysisDetailScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'InformaÃ§Ãµes do envio',
+          'Informacoes do envio',
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -136,12 +136,12 @@ class AnalysisDetailScreen extends StatelessWidget {
         if (analysis.notes.isNotEmpty)
           _buildInfoRow(
             Icons.note_alt_outlined,
-            'ObservaÃ§Ãµes',
+            'Observacoes',
             analysis.notes,
           ),
         _buildInfoRow(
           Icons.location_on_outlined,
-          'LocalizaÃ§Ã£o',
+          'Localizacao',
           '${analysis.latitude.toStringAsFixed(4)}, '
               '${analysis.longitude.toStringAsFixed(4)}',
         ),
@@ -247,7 +247,7 @@ class AnalysisDetailScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Resultado da anÃ¡lise',
+          'Resultado da analise',
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -256,7 +256,7 @@ class AnalysisDetailScreen extends StatelessWidget {
         if (analysis.speciesName != null)
           _buildResultCard(
             icon: Icons.grass,
-            label: 'EspÃ©cie identificada',
+            label: 'Especie identificada',
             value: analysis.speciesName!,
             color: Colors.green,
           ),
@@ -274,7 +274,7 @@ class AnalysisDetailScreen extends StatelessWidget {
           const SizedBox(height: 10),
           _buildResultCard(
             icon: Icons.comment_outlined,
-            label: 'ObservaÃ§Ãµes de manejo',
+            label: 'Observacoes de manejo',
             value: analysis.adminNotes!,
             color: Colors.blue,
           ),
@@ -350,15 +350,15 @@ class AnalysisDetailScreen extends StatelessWidget {
           const Icon(Icons.hourglass_top, color: Colors.orange, size: 48),
           const SizedBox(height: 12),
           Text(
-            'AnÃ¡lise em andamento',
+            'Analise em andamento',
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Sua forrageira estÃ¡ sendo analisada por nossa equipe. '
-            'VocÃª serÃ¡ notificado quando o resultado estiver disponÃ­vel.',
+            'Sua forrageira esta sendo analisada por nossa equipe. '
+            'Voce sera notificado quando o resultado estiver disponivel.',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall,
           ),
