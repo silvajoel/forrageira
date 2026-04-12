@@ -1,4 +1,4 @@
-package com.example.forrageira
+package br.edu.ufsj.forrageira
 
 import io.flutter.embedding.android.FlutterActivity
 
