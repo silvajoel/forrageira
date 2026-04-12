@@ -7,6 +7,7 @@ import 'admin/admin_home_page.dart';
 import 'admin/admin_login_page.dart';
 import 'login_screen.dart';
 import 'main_screen.dart';
+import '../services/navigation_service.dart';
 
 class AppBootstrapPage extends StatelessWidget {
   const AppBootstrapPage({super.key});
@@ -47,7 +48,7 @@ class AppBootstrapPage extends StatelessWidget {
 
             if (!kIsWeb && profile == null) {
               // Permite uso offline do app mobile para usuarios ja autenticados.
-              return const MainScreen();
+              return MainScreen(key: mainScreenKey);
             }
 
             if (profile == null) {
@@ -97,7 +98,7 @@ class AppBootstrapPage extends StatelessWidget {
               );
             }
 
-            return const MainScreen();
+            return MainScreen(key: mainScreenKey);
           },
         );
       },

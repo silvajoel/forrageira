@@ -91,7 +91,7 @@ class MyApp extends StatelessWidget {
       theme: appTheme,
       home: const AppBootstrapPage(),
       routes: {
-        '/home': (context) => const MainScreen(),
+        '/home': (context) => MainScreen(key: mainScreenKey),
         '/register': (context) => const RegisterScreen(),
         '/forgotpassword': (context) => const ForgotPasswordScreen(),
         '/submitanalysis': (context) => SubmitAnalysisScreen(
