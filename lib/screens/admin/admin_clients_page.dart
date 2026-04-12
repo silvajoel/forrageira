@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:forrageira/services/audit_log_service.dart';
 import 'package:forrageira/services/user_service.dart';
 
-
 class AdminClientsPage extends StatefulWidget {
   const AdminClientsPage({super.key});
 
@@ -22,7 +21,8 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
   final TextEditingController _searchCtrl = TextEditingController();
 
   final ValueNotifier<String> _searchNotifier = ValueNotifier<String>('');
-  final ValueNotifier<String> _roleFilterNotifier = ValueNotifier<String>('todos');
+  final ValueNotifier<String> _roleFilterNotifier =
+      ValueNotifier<String>('todos');
 
   bool _savingAction = false;
   Timer? _searchDebounce;
@@ -44,10 +44,10 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
   }
 
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _applyFilters(
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs, {
-        required String search,
-        required String roleFilter,
-      }) {
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs, {
+    required String search,
+    required String roleFilter,
+  }) {
     final query = search.trim().toLowerCase();
 
     return docs.where((doc) {
@@ -79,7 +79,8 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: const Row(
             children: [
               Icon(Icons.admin_panel_settings_outlined),
@@ -89,7 +90,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
           ),
           content: Text(
             'Deseja realmente tornar "$name" um administrador?\n\n'
-                'Esse usuário passará a ter acesso às funções administrativas do sistema.',
+            'Esse usuário passará a ter acesso às funções administrativas do sistema.',
           ),
           actions: [
             TextButton(
@@ -138,7 +139,8 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
     }
   }
 
-  Future<void> _toggleActive(String userId, Map<String, dynamic> userData) async {
+  Future<void> _toggleActive(
+      String userId, Map<String, dynamic> userData) async {
     final isActive = UserService.isProfileActive(userData);
     final name = (userData['name'] ?? 'este usuário').toString();
 
@@ -146,10 +148,12 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: Row(
             children: [
-              Icon(isActive ? Icons.block_outlined : Icons.check_circle_outline),
+              Icon(
+                  isActive ? Icons.block_outlined : Icons.check_circle_outline),
               const SizedBox(width: 10),
               Text(isActive ? 'Desativar usuário' : 'Ativar usuário'),
             ],
@@ -265,7 +269,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
               ),
               content: const Text(
                 'Este usuário já possui registros de análise vinculados e não pode ser excluído.\n\n'
-                    'Nesse caso, apenas a inativação é permitida.',
+                'Nesse caso, apenas a inativação é permitida.',
               ),
               actions: [
                 FilledButton(
@@ -296,7 +300,8 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
                 Text('Erro ao validar exclusão'),
               ],
             ),
-            content: Text('Não foi possível validar os vínculos do usuário.\n\n$e'),
+            content:
+                Text('Não foi possível validar os vínculos do usuário.\n\n$e'),
             actions: [
               FilledButton(
                 onPressed: () => Navigator.pop(context),
@@ -314,7 +319,8 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: const Row(
             children: [
               Icon(Icons.delete_outline, color: Colors.red),
@@ -324,7 +330,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
           ),
           content: Text(
             'Deseja realmente excluir "$name"?\n\n'
-                'Essa ação remove o documento do usuário no Firestore.',
+            'Essa ação remove o documento do usuário no Firestore.',
           ),
           actions: [
             TextButton(
@@ -387,7 +393,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
               Text(
-                'Clientes',
+                'Gestao de Usuarios',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
@@ -472,7 +478,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
                     borderRadius: BorderRadius.circular(14),
                     items: const [
                       DropdownMenuItem(value: 'todos', child: Text('Todos')),
-                      DropdownMenuItem(value: 'user', child: Text('Clientes')),
+                      DropdownMenuItem(value: 'user', child: Text('Usuarios')),
                       DropdownMenuItem(value: 'admin', child: Text('Admins')),
                     ],
                     onChanged: (value) {
@@ -490,7 +496,8 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
             children: [
               _statChip(Icons.people_alt_outlined, '$totalFiltered usuário(s)'),
               const SizedBox(width: 10),
-              _statChip(Icons.verified_user_outlined, 'Filtro: ${_labelRole(roleFilter)}'),
+              _statChip(Icons.verified_user_outlined,
+                  'Filtro: ${_labelRole(roleFilter)}'),
             ],
           ),
         ],
@@ -527,7 +534,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
       case 'admin':
         return 'Admins';
       case 'user':
-        return 'Clientes';
+        return 'Usuarios';
       default:
         return 'Todos';
     }
@@ -543,7 +550,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        isAdmin ? 'Admin' : 'Cliente',
+        isAdmin ? 'Admin' : 'Usuario',
         style: TextStyle(
           fontWeight: FontWeight.w700,
           color: isAdmin ? const Color(0xFF2E7D32) : const Color(0xFF4B5563),
@@ -594,7 +601,8 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
           onPressed: () {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Ação de editar ainda não implementada nesta tela.'),
+                content:
+                    Text('Ação de editar ainda não implementada nesta tela.'),
               ),
             );
           },
@@ -724,92 +732,95 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
   @override
   Widget build(BuildContext context) {
     return ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 18),
-          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: _usersStream(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return _buildError(snapshot.error);
-              }
+      padding: const EdgeInsets.all(24),
+      children: [
+        _buildHeader(),
+        const SizedBox(height: 18),
+        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _usersStream(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return _buildError(snapshot.error);
+            }
 
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-
-              final docs = snapshot.data?.docs ?? [];
-              final sortedDocs = [...docs]..sort((a, b) {
-                  final aTs = UserService.userCreatedTimestamp(a.data());
-                  final bTs = UserService.userCreatedTimestamp(b.data());
-                  final aDate = aTs?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
-                  final bDate = bTs?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
-                  return bDate.compareTo(aDate);
-                });
-
-              return ValueListenableBuilder<String>(
-                valueListenable: _searchNotifier,
-                builder: (context, searchValue, _) {
-                  return ValueListenableBuilder<String>(
-                    valueListenable: _roleFilterNotifier,
-                    builder: (context, roleFilterValue, __) {
-                      final filteredDocs = _applyFilters(
-                        sortedDocs,
-                        search: searchValue,
-                        roleFilter: roleFilterValue,
-                      );
-
-                      return Column(
-                        children: [
-                          _buildFilters(
-                            totalFiltered: filteredDocs.length,
-                            roleFilter: roleFilterValue,
-                          ),
-                          const SizedBox(height: 18),
-                          if (filteredDocs.isEmpty)
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(40),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: const Color(0xFFE5E7EB)),
-                              ),
-                              child: const Column(
-                                children: [
-                                  Icon(Icons.people_outline,
-                                      size: 44, color: Color(0xFF9CA3AF)),
-                                  SizedBox(height: 12),
-                                  Text(
-                                    'Nenhum usuário encontrado.',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  SizedBox(height: 6),
-                                  Text(
-                                    'Tente ajustar a busca ou o filtro selecionado.',
-                                    style: TextStyle(color: Color(0xFF6B7280)),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
-                            _buildTable(filteredDocs),
-                        ],
-                      );
-                    },
-                  );
-                },
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.all(40),
+                child: Center(child: CircularProgressIndicator()),
               );
-            },
-          ),
-        ],
-      );
+            }
+
+            final docs = snapshot.data?.docs ?? [];
+            final sortedDocs = [...docs]..sort((a, b) {
+                final aTs = UserService.userCreatedTimestamp(a.data());
+                final bTs = UserService.userCreatedTimestamp(b.data());
+                final aDate =
+                    aTs?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+                final bDate =
+                    bTs?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+                return bDate.compareTo(aDate);
+              });
+
+            return ValueListenableBuilder<String>(
+              valueListenable: _searchNotifier,
+              builder: (context, searchValue, _) {
+                return ValueListenableBuilder<String>(
+                  valueListenable: _roleFilterNotifier,
+                  builder: (context, roleFilterValue, __) {
+                    final filteredDocs = _applyFilters(
+                      sortedDocs,
+                      search: searchValue,
+                      roleFilter: roleFilterValue,
+                    );
+
+                    return Column(
+                      children: [
+                        _buildFilters(
+                          totalFiltered: filteredDocs.length,
+                          roleFilter: roleFilterValue,
+                        ),
+                        const SizedBox(height: 18),
+                        if (filteredDocs.isEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(40),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              border:
+                                  Border.all(color: const Color(0xFFE5E7EB)),
+                            ),
+                            child: const Column(
+                              children: [
+                                Icon(Icons.people_outline,
+                                    size: 44, color: Color(0xFF9CA3AF)),
+                                SizedBox(height: 12),
+                                Text(
+                                  'Nenhum usuário encontrado.',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                SizedBox(height: 6),
+                                Text(
+                                  'Tente ajustar a busca ou o filtro selecionado.',
+                                  style: TextStyle(color: Color(0xFF6B7280)),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          _buildTable(filteredDocs),
+                      ],
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
+      ],
+    );
   }
 }

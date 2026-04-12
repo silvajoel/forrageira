@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 class AdminSidebar extends StatelessWidget {
   final String selected;
@@ -20,11 +20,11 @@ class AdminSidebar extends StatelessWidget {
       child: ListView(
         children: [
           _item(Icons.home_outlined, 'Dashboard', 'dashboard'),
-          _item(Icons.hourglass_empty, 'Solicitações Pendentes', 'pendentes'),
-          _item(Icons.inventory_2_outlined, 'Banco de Espécies', 'banco'),
-          _item(Icons.history, 'Histórico de Laudos', 'historico'),
-          _item(Icons.groups_outlined, 'Gestão de Clientes', 'clientes'),
-          _item(Icons.settings_outlined, 'Configurações', 'config'),
+          _item(Icons.hourglass_empty, 'Solicitacoes', 'pendentes'),
+          _item(Icons.inventory_2_outlined, 'Banco de Especies', 'banco'),
+          _item(Icons.history, 'Historico de Laudos', 'historico'),
+          _item(Icons.groups_outlined, 'Gestao de Usuarios', 'clientes'),
+          _item(Icons.settings_outlined, 'Configuracoes', 'config'),
           const Divider(color: Colors.white24),
           _logout(context),
         ],
@@ -66,7 +66,7 @@ class AdminSidebar extends StatelessWidget {
         if (context.mounted) {
           Navigator.of(context).pushNamedAndRemoveUntil(
             '/admin-login',
-                (route) => false,
+            (route) => false,
           );
         }
       },

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:forrageira/models/app_notification.dart';
+import 'package:forrageira/screens/admin/admin_request_analysis_dialog.dart';
 import 'package:forrageira/services/app_notification_service.dart';
 import 'package:forrageira/services/user_service.dart';
 import 'package:forrageira/services/i_forage_service.dart';
@@ -81,10 +82,12 @@ class _NotificationsOverlayState extends State<_NotificationsOverlay> {
                 // Header
                 Container(
                   color: AppColors.greenDark,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: Row(
                     children: [
-                      const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+                      const Icon(Icons.notifications_outlined,
+                          color: Colors.white, size: 20),
                       const SizedBox(width: 10),
                       const Expanded(
                         child: Text(
@@ -97,7 +100,8 @@ class _NotificationsOverlayState extends State<_NotificationsOverlay> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                        icon: const Icon(Icons.close,
+                            color: Colors.white70, size: 20),
                         onPressed: () => Navigator.pop(context),
                         tooltip: 'Fechar',
                       ),
@@ -134,8 +138,8 @@ class _NotificationsOverlayState extends State<_NotificationsOverlay> {
                             stream: _service.watchAdminRoleNotifications(),
                             builder: (context, adminSnap) {
                               final adminItems = adminSnap.data ?? [];
-                              final all = [...userItems, ...adminItems]
-                                ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                              final all = [...userItems, ...adminItems]..sort(
+                                  (a, b) => b.createdAt.compareTo(a.createdAt));
                               return _body(
                                 context,
                                 uid: uid,
@@ -158,11 +162,11 @@ class _NotificationsOverlayState extends State<_NotificationsOverlay> {
   }
 
   Widget _body(
-      BuildContext context, {
-        required String uid,
-        required bool isAdmin,
-        required List<AppNotification> notifications,
-      }) {
+    BuildContext context, {
+    required String uid,
+    required bool isAdmin,
+    required List<AppNotification> notifications,
+  }) {
     final unread = notifications.where((n) => !n.read).length;
 
     // Tenta obter forageService — pode não estar disponível no contexto admin
@@ -181,7 +185,8 @@ class _NotificationsOverlayState extends State<_NotificationsOverlay> {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.red.shade50,
                     borderRadius: BorderRadius.circular(20),
@@ -198,15 +203,17 @@ class _NotificationsOverlayState extends State<_NotificationsOverlay> {
                 ),
                 const Spacer(),
                 TextButton.icon(
-                  onPressed: _markingAll ? null : () => _markAllAsRead(uid, isAdmin),
+                  onPressed:
+                      _markingAll ? null : () => _markAllAsRead(uid, isAdmin),
                   icon: _markingAll
                       ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Icon(Icons.done_all, size: 16),
-                  label: const Text('Marcar lidas', style: TextStyle(fontSize: 13)),
+                  label: const Text('Marcar lidas',
+                      style: TextStyle(fontSize: 13)),
                   style: TextButton.styleFrom(foregroundColor: AppColors.green),
                 ),
               ],
@@ -218,46 +225,58 @@ class _NotificationsOverlayState extends State<_NotificationsOverlay> {
           child: notifications.isEmpty
               ? _emptyState()
               : ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: notifications.length,
-            itemBuilder: (context, index) {
-              final item = notifications[index];
-              return _NotifTile(
-                item: item,
-                formatDate: _formatDate,
-                onTap: () async {
-                  try {
-                    await _service.markAsRead(item.id);
-                  } catch (_) {}
+                  padding: const EdgeInsets.all(12),
+                  itemCount: notifications.length,
+                  itemBuilder: (context, index) {
+                    final item = notifications[index];
+                    return _NotifTile(
+                      item: item,
+                      formatDate: _formatDate,
+                      onTap: () async {
+                        try {
+                          await _service.markAsRead(item.id);
+                        } catch (_) {}
 
-                  final analysisId = item.analysisId;
-                  if (analysisId == null || analysisId.isEmpty) return;
+                        final analysisId = item.analysisId;
+                        if (analysisId == null || analysisId.isEmpty) return;
 
-                  if (forageService != null) {
-                    try {
-                      final analysis = await forageService.getById(analysisId);
-                      if (!context.mounted) return;
-                      // Fecha o modal primeiro
-                      Navigator.pop(context);
-                      // Usa navigatorKey para encontrar MainScreenState mesmo
-                      // quando o modal foi aberto via showGeneralDialog (rota nova)
-                      final navContext = navigatorKey.currentContext;
-                      if (navContext != null) {
-                        final mainScreen =
-                        navContext.findAncestorStateOfType<MainScreenState>();
-                        mainScreen?.openAnalysisDetail(analysis);
-                      }
-                    } catch (_) {}
-                  }
-                },
-                onMarkRead: () async {
-                  try {
-                    await _service.markAsRead(item.id);
-                  } catch (_) {}
-                },
-              );
-            },
-          ),
+                        if (isAdmin) {
+                          if (!context.mounted) return;
+                          await showDialog<bool>(
+                            context: context,
+                            barrierDismissible: true,
+                            builder: (_) => AdminRequestAnalysisDialog(
+                                requestId: analysisId),
+                          );
+                          return;
+                        }
+
+                        if (forageService != null) {
+                          try {
+                            final analysis =
+                                await forageService.getById(analysisId);
+                            if (!context.mounted) return;
+                            // Fecha o modal primeiro
+                            Navigator.pop(context);
+                            // Usa navigatorKey para encontrar MainScreenState mesmo
+                            // quando o modal foi aberto via showGeneralDialog (rota nova)
+                            final navContext = navigatorKey.currentContext;
+                            if (navContext != null) {
+                              final mainScreen = navContext
+                                  .findAncestorStateOfType<MainScreenState>();
+                              mainScreen?.openAnalysisDetail(analysis);
+                            }
+                          } catch (_) {}
+                        }
+                      },
+                      onMarkRead: () async {
+                        try {
+                          await _service.markAsRead(item.id);
+                        } catch (_) {}
+                      },
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -309,9 +328,12 @@ class _NotifTile extends StatelessWidget {
 
   IconData get _icon {
     final t = item.title.toLowerCase();
-    if (t.contains('recebida') || t.contains('enviada')) return Icons.upload_file_outlined;
-    if (t.contains('concluída') || t.contains('finalizada')) return Icons.check_circle_outline;
-    if (t.contains('nova análise') || t.contains('cadastrada')) return Icons.science_outlined;
+    if (t.contains('recebida') || t.contains('enviada'))
+      return Icons.upload_file_outlined;
+    if (t.contains('concluída') || t.contains('finalizada'))
+      return Icons.check_circle_outline;
+    if (t.contains('nova análise') || t.contains('cadastrada'))
+      return Icons.science_outlined;
     return Icons.notifications_outlined;
   }
 
@@ -366,7 +388,9 @@ class _NotifTile extends StatelessWidget {
                               child: Text(
                                 item.title,
                                 style: TextStyle(
-                                  fontWeight: item.read ? FontWeight.w500 : FontWeight.w700,
+                                  fontWeight: item.read
+                                      ? FontWeight.w500
+                                      : FontWeight.w700,
                                   fontSize: 13,
                                   color: AppColors.textPrimary,
                                 ),
@@ -388,7 +412,9 @@ class _NotifTile extends StatelessWidget {
                           item.message,
                           style: TextStyle(
                             fontSize: 12,
-                            color: item.read ? AppColors.gray : AppColors.textPrimary.withValues(alpha: 0.7),
+                            color: item.read
+                                ? AppColors.gray
+                                : AppColors.textPrimary.withValues(alpha: 0.7),
                             height: 1.4,
                           ),
                         ),
@@ -398,7 +424,8 @@ class _NotifTile extends StatelessWidget {
                           children: [
                             Text(
                               formatDate(item.createdAt),
-                              style: TextStyle(fontSize: 11, color: AppColors.gray),
+                              style: TextStyle(
+                                  fontSize: 11, color: AppColors.gray),
                             ),
                             if (!item.read)
                               GestureDetector(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:forrageira/models/analysis_request.dart';
 import 'package:forrageira/screens/main_screen.dart';
+import 'package:forrageira/widgets/image_viewer_dialog.dart';
 
 class AnalysisDetailScreen extends StatelessWidget {
   final AnalysisRequest analysis;
@@ -26,15 +27,15 @@ class AnalysisDetailScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
             final mainScreen =
-            context.findAncestorStateOfType<MainScreenState>();
-            mainScreen?.setIndex(0); // volta para Home
+                context.findAncestorStateOfType<MainScreenState>();
+            mainScreen?.setIndex(0);
           },
         ),
         title: const Row(
           children: [
             Icon(Icons.grass),
             SizedBox(width: 8),
-            Text('Detalhe da Análise'),
+            Text('Detalhe da AnÃ¡lise'),
           ],
         ),
       ),
@@ -100,7 +101,7 @@ class AnalysisDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  isCompleted ? 'Análise finalizada' : 'Em análise',
+                  isCompleted ? 'AnÃ¡lise finalizada' : 'Em anÃ¡lise',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: isCompleted ? Colors.green : Colors.orange,
                     fontWeight: FontWeight.w500,
@@ -121,7 +122,7 @@ class AnalysisDetailScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Informações do envio',
+          'InformaÃ§Ãµes do envio',
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -135,12 +136,12 @@ class AnalysisDetailScreen extends StatelessWidget {
         if (analysis.notes.isNotEmpty)
           _buildInfoRow(
             Icons.note_alt_outlined,
-            'Observações',
+            'ObservaÃ§Ãµes',
             analysis.notes,
           ),
         _buildInfoRow(
           Icons.location_on_outlined,
-          'Localização',
+          'LocalizaÃ§Ã£o',
           '${analysis.latitude.toStringAsFixed(4)}, '
               '${analysis.longitude.toStringAsFixed(4)}',
         ),
@@ -166,9 +167,7 @@ class AnalysisDetailScreen extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: '$label: ',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   TextSpan(text: value),
                 ],
@@ -194,27 +193,48 @@ class AnalysisDetailScreen extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 100,
+          height: 116,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: analysis.imageUrls.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, index) => ClipRRect(
+            itemBuilder: (context, index) => InkWell(
+              onTap: () => showImageViewerDialog(
+                context: context,
+                title: 'Imagem ${index + 1}',
+                child: Image.network(
+                  analysis.imageUrls[index],
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.broken_image,
+                    color: Colors.white70,
+                    size: 48,
+                  ),
+                ),
+              ),
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                analysis.imageUrls[index],
-                width: 100,
-                height: 100,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 100,
-                  height: 100,
-                  color: Colors.grey.shade200,
-                  child: const Icon(Icons.broken_image),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  analysis.imageUrls[index],
+                  width: 116,
+                  height: 116,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 116,
+                    height: 116,
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.broken_image),
+                  ),
                 ),
               ),
             ),
           ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Toque em uma imagem para ampliar.',
+          style: theme.textTheme.bodySmall,
         ),
       ],
     );
@@ -227,7 +247,7 @@ class AnalysisDetailScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Resultado da análise',
+          'Resultado da anÃ¡lise',
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -236,11 +256,12 @@ class AnalysisDetailScreen extends StatelessWidget {
         if (analysis.speciesName != null)
           _buildResultCard(
             icon: Icons.grass,
-            label: 'Espécie identificada',
+            label: 'EspÃ©cie identificada',
             value: analysis.speciesName!,
             color: Colors.green,
           ),
-        if (analysis.careInstructions != null && analysis.careInstructions!.isNotEmpty) ...[
+        if (analysis.careInstructions != null &&
+            analysis.careInstructions!.isNotEmpty) ...[
           const SizedBox(height: 10),
           _buildResultCard(
             icon: Icons.eco_outlined,
@@ -253,7 +274,7 @@ class AnalysisDetailScreen extends StatelessWidget {
           const SizedBox(height: 10),
           _buildResultCard(
             icon: Icons.comment_outlined,
-            label: 'Observações de manuseio',
+            label: 'ObservaÃ§Ãµes de manejo',
             value: analysis.adminNotes!,
             color: Colors.blue,
           ),
@@ -326,19 +347,18 @@ class AnalysisDetailScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.hourglass_top,
-              color: Colors.orange, size: 48),
+          const Icon(Icons.hourglass_top, color: Colors.orange, size: 48),
           const SizedBox(height: 12),
           Text(
-            'Análise em andamento',
+            'AnÃ¡lise em andamento',
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Sua forrageira está sendo analisada por nossa equipe. '
-                'Você será notificado quando o resultado estiver disponível.',
+            'Sua forrageira estÃ¡ sendo analisada por nossa equipe. '
+            'VocÃª serÃ¡ notificado quando o resultado estiver disponÃ­vel.',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall,
           ),

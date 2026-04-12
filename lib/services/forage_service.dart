@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:forrageira/models/analysis_request.dart';
 import 'package:forrageira/services/app_notification_service.dart';
 import 'package:forrageira/services/audit_log_service.dart';
+
 import 'i_forage_service.dart';
 
 class ForageService extends ChangeNotifier implements IForageService {
@@ -38,7 +39,6 @@ class ForageService extends ChangeNotifier implements IForageService {
       'created_at': FieldValue.serverTimestamp(),
     });
 
-    // Notifica os admins sobre a nova análise
     try {
       await _notificationService.notifyAdminsNewAnalysis(
         analysisId: requestRef.id,
@@ -49,7 +49,6 @@ class ForageService extends ChangeNotifier implements IForageService {
       debugPrint('Falha ao notificar admins: $e');
     }
 
-    // Notifica o próprio usuário que sua análise foi recebida
     try {
       await _notificationService.notifyUserAnalysisReceived(
         analysisId: requestRef.id,
@@ -57,7 +56,7 @@ class ForageService extends ChangeNotifier implements IForageService {
         forageName: name,
       );
     } catch (e) {
-      debugPrint('Falha ao notificar usuário sobre recebimento: $e');
+      debugPrint('Falha ao notificar usuario sobre recebimento: $e');
     }
   }
 
@@ -71,14 +70,14 @@ class ForageService extends ChangeNotifier implements IForageService {
     final docRef = _firestore.collection('analysis_requests').doc(requestId);
     final snapshot = await docRef.get();
     if (!snapshot.exists) {
-      throw Exception('Análise não encontrada');
+      throw Exception('Analise nao encontrada');
     }
 
     final data = snapshot.data() as Map<String, dynamic>;
     final userId = data['user_id'] as String?;
     final forageName = (data['name'] as String?) ?? 'forrageira';
     if (userId == null || userId.isEmpty) {
-      throw Exception('Usuário da análise inválido');
+      throw Exception('Usuario da analise invalido');
     }
 
     await _notificationService.notifyUserAnalysisCompleted(
@@ -106,27 +105,33 @@ class ForageService extends ChangeNotifier implements IForageService {
   }
 
   @override
-  Stream<List<AnalysisRequest>> watchUserForages(String userId, {int limit = 3}) {
+  Stream<List<AnalysisRequest>> watchUserForages(
+    String userId, {
+    int limit = 3,
+  }) {
     return _firestore
         .collection('analysis_requests')
         .where('user_id', isEqualTo: userId)
         .limit(limit)
         .snapshots()
-        .map((snap) => snap.docs
-        .map(AnalysisRequestFirestore.fromFirestore)
-        .toList());
+        .map((snap) => _sortByCreatedAtDesc(
+              snap.docs.map(AnalysisRequestFirestore.fromFirestore).toList(),
+            ));
   }
 
   @override
-  Stream<List<AnalysisRequest>> watchAllUserForages(String userId, {int limit = 20}) {
+  Stream<List<AnalysisRequest>> watchAllUserForages(
+    String userId, {
+    int limit = 20,
+  }) {
     return _firestore
         .collection('analysis_requests')
         .where('user_id', isEqualTo: userId)
         .limit(limit)
         .snapshots()
-        .map((snap) => snap.docs
-        .map(AnalysisRequestFirestore.fromFirestore)
-        .toList());
+        .map((snap) => _sortByCreatedAtDesc(
+              snap.docs.map(AnalysisRequestFirestore.fromFirestore).toList(),
+            ));
   }
 
   @override
@@ -135,27 +140,28 @@ class ForageService extends ChangeNotifier implements IForageService {
         .collection('analysis_requests')
         .limit(limit)
         .snapshots()
-        .map((snap) => snap.docs
-        .map(AnalysisRequestFirestore.fromFirestore)
-        .toList()
-      ..sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
-      }));
+        .map((snap) => _sortByCreatedAtDesc(
+              snap.docs.map(AnalysisRequestFirestore.fromFirestore).toList(),
+            ));
   }
 
   @override
   Future<AnalysisRequest> getById(String id) async {
-    final doc = await _firestore
-        .collection('analysis_requests')
-        .doc(id)
-        .get();
+    final doc = await _firestore.collection('analysis_requests').doc(id).get();
 
     if (!doc.exists) {
-      throw Exception('Análise não encontrada');
+      throw Exception('Analise nao encontrada');
     }
 
     return AnalysisRequestFirestore.fromFirestore(doc);
+  }
+
+  List<AnalysisRequest> _sortByCreatedAtDesc(List<AnalysisRequest> items) {
+    items.sort((a, b) {
+      final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
+    return items;
   }
 }

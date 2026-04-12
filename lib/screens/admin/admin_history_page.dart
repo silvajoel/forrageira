@@ -1,5 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:forrageira/models/analysis_request.dart';
+import 'package:forrageira/services/audit_log_service.dart';
+import 'package:forrageira/services/i_forage_service.dart';
+import 'package:provider/provider.dart';
 
 class AdminHistoryPage extends StatefulWidget {
   const AdminHistoryPage({super.key});
@@ -9,65 +13,19 @@ class AdminHistoryPage extends StatefulWidget {
 }
 
 class _AdminHistoryPageState extends State<AdminHistoryPage> {
+  final _audit = AuditLogService();
   final _firestore = FirebaseFirestore.instance;
 
-  static const _green = Color(0xFF1F5B3F);
-  static const _greenLight = Color(0xFFE8F5E9);
-  static const _surface = Color(0xFFF7F9FB);
-  static const _border = Color(0x14000000);
+  final Map<String, String> _userCache = {};
 
-  // PAGINAÇÃO
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _docs = [];
-  DocumentSnapshot? _lastDoc;
-  bool _isLoading = false;
-  bool _hasMore = true;
-  final int _limit = 10;
-
-  // CACHE DE USUÁRIOS
-  final Map<String, String> _userNameCache = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMore();
-  }
-
-  // 🔥 PAGINAÇÃO FIRESTORE
-  Future<void> _loadMore() async {
-    if (_isLoading || !_hasMore) return;
-
-    setState(() => _isLoading = true);
-
-    Query<Map<String, dynamic>> query = _firestore
-        .collection('analysis_requests')
-        .where('status', isEqualTo: 'completed')
-        .orderBy('completed_at', descending: true)
-        .limit(_limit);
-
-    if (_lastDoc != null) {
-      query = query.startAfterDocument(_lastDoc!);
-    }
-
-    final snapshot = await query.get();
-
-    if (snapshot.docs.isNotEmpty) {
-      _lastDoc = snapshot.docs.last;
-      _docs.addAll(snapshot.docs);
-    }
-
-    if (snapshot.docs.length < _limit) {
-      _hasMore = false;
-    }
-
-    setState(() => _isLoading = false);
-  }
-
-  // 👤 NOME DO USUÁRIO
-  Future<String> _fetchUserName(String uid) async {
+  // =========================
+  // 👤 BUSCAR NOME USUÁRIO
+  // =========================
+  Future<String> _getUserName(String uid) async {
     if (uid.isEmpty) return 'Usuário';
 
-    if (_userNameCache.containsKey(uid)) {
-      return _userNameCache[uid]!;
+    if (_userCache.containsKey(uid)) {
+      return _userCache[uid]!;
     }
 
     try {
@@ -80,7 +38,7 @@ class _AdminHistoryPageState extends State<AdminHistoryPage> {
           'Usuário')
           .toString();
 
-      _userNameCache[uid] = name;
+      _userCache[uid] = name;
       return name;
     } catch (_) {
       return 'Usuário';
@@ -89,218 +47,224 @@ class _AdminHistoryPageState extends State<AdminHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: _surface,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Row(
+    final forageService = context.read<IForageService>();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F6FA),
+      appBar: AppBar(
+        title: const Text('Histórico de Laudos'),
+        elevation: 0,
+      ),
+      body: StreamBuilder<List<AnalysisRequest>>(
+        stream: forageService.watchAllRequests(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final history = (snapshot.data ?? [])
+              .where((e) => e.status == 'completed')
+              .toList();
+
+          if (history.isEmpty) {
+            return const Center(child: Text('Nenhuma análise encontrada.'));
+          }
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: _greenLight,
-                  borderRadius: BorderRadius.circular(12),
+              _card(
+                title: 'Análises finalizadas',
+                icon: Icons.check_circle_outline,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    headingRowColor:
+                    MaterialStateProperty.all(const Color(0xFFEAECEF)),
+                    columnSpacing: 24,
+                    columns: const [
+                      DataColumn(label: Text('ID')),
+                      DataColumn(label: Text('Forrageira')),
+                      DataColumn(label: Text('Usuário')),
+                      DataColumn(label: Text('Espécie')),
+                      DataColumn(label: Text('Finalizado em')),
+                    ],
+                    rows: history.map((r) {
+                      final dt = r.reviewedAt == null
+                          ? '-'
+                          : _fmt(r.reviewedAt!);
+
+                      return DataRow(
+                        cells: [
+                          DataCell(Text(r.id)),
+                          DataCell(Text(r.name)),
+
+                          // 👤 USUÁRIO MELHORADO
+                          DataCell(_UserNameCell(
+                            userId: r.userId,
+                            getUserName: _getUserName,
+                          )),
+
+                          DataCell(Text(r.speciesName ?? '-')),
+                          DataCell(Text(dt)),
+                        ],
+                      );
+                    }).toList(),
+                  ),
                 ),
-                child: const Icon(Icons.history, color: _green),
               ),
-              const SizedBox(width: 12),
-              const Text('Histórico de Laudos',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+
+              const SizedBox(height: 16),
+
+              _card(
+                title: 'Log do Admin',
+                icon: Icons.event_note,
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _audit.watchRecent(),
+                  builder: (context, logSnapshot) {
+                    if (logSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const Center(
+                          child: CircularProgressIndicator());
+                    }
+
+                    final logs = logSnapshot.data?.docs ?? [];
+
+                    if (logs.isEmpty) {
+                      return const Text('Nenhum log encontrado.');
+                    }
+
+                    return Column(
+                      children: logs.map((doc) {
+                        final data = doc.data();
+
+                        final createdAt =
+                        (data['created_at'] as Timestamp?)?.toDate();
+
+                        final actor =
+                        (data['actor_email'] ?? 'admin').toString();
+
+                        final action =
+                        (data['action'] ?? '').toString();
+
+                        return ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.history),
+                          title: Text(action),
+                          subtitle: Text(
+                            '$actor • ${createdAt == null ? '-' : _fmt(createdAt)}',
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+              ),
             ],
-          ),
-          const SizedBox(height: 20),
-
-          // 🔥 ANÁLISES PAGINADAS
-          _card(
-            icon: Icons.check_circle_outline,
-            title: 'Análises finalizadas',
-            child: Column(
-              children: [
-                if (_docs.isEmpty && _isLoading) _loading(),
-
-                if (_docs.isEmpty && !_isLoading)
-                  _emptyBox('Nenhuma análise encontrada'),
-
-                if (_docs.isNotEmpty)
-                  _AnalysisTable(
-                    docs: _docs,
-                    fetchUserName: _fetchUserName,
-                  ),
-
-                const SizedBox(height: 12),
-
-                if (_hasMore)
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _loadMore,
-                    child: _isLoading
-                        ? const CircularProgressIndicator()
-                        : const Text('Carregar mais'),
-                  ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // LOGS (mantido)
-          _card(
-            icon: Icons.list_alt,
-            title: 'Logs',
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _firestore
-                  .collection('logs')
-                  .orderBy('created_at', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return _loading();
-
-                final docs = snapshot.data!.docs;
-
-                if (docs.isEmpty) return _emptyBox('Nenhum log');
-
-                return Column(
-                  children: docs
-                      .map((d) => _LogTile(data: d.data()))
-                      .toList(),
-                );
-              },
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
+  // =========================
+  // 🕒 FORMATADOR DATA
+  // =========================
+  static String _fmt(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/'
+          '${d.month.toString().padLeft(2, '0')}/'
+          '${d.year} '
+          '${d.hour.toString().padLeft(2, '0')}:'
+          '${d.minute.toString().padLeft(2, '0')}';
+
+  // =========================
+  // 🎨 CARD UI MELHORADO
+  // =========================
   Widget _card({
-    required IconData icon,
     required String title,
     required Widget child,
+    required IconData icon,
   }) {
     return Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          )
+        ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ListTile(
-            leading: Icon(icon, color: _green),
-            title: Text(title,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              Icon(icon, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+            ],
           ),
-          Padding(padding: const EdgeInsets.all(12), child: child),
+          const SizedBox(height: 12),
+          child,
         ],
       ),
     );
   }
-
-  Widget _loading() => const Padding(
-    padding: EdgeInsets.all(24),
-    child: Center(child: CircularProgressIndicator()),
-  );
-
-  Widget _emptyBox(String text) => Padding(
-    padding: const EdgeInsets.all(24),
-    child: Text(text),
-  );
 }
 
-// ================= TABLE =================
+// =========================
+// 👤 WIDGET USUÁRIO (ANTI-LOOP)
+// =========================
+class _UserNameCell extends StatefulWidget {
+  final String userId;
+  final Future<String> Function(String) getUserName;
 
-class _AnalysisTable extends StatelessWidget {
-  const _AnalysisTable({
-    required this.docs,
-    required this.fetchUserName,
+  const _UserNameCell({
+    required this.userId,
+    required this.getUserName,
   });
 
-  final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
-  final Future<String> Function(String uid) fetchUserName;
-
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: docs
-          .map((doc) => _AnalysisRow(
-        doc: doc,
-        fetchUserName: fetchUserName,
-      ))
-          .toList(),
-    );
-  }
+  State<_UserNameCell> createState() => _UserNameCellState();
 }
 
-// ================= ROW =================
-
-class _AnalysisRow extends StatefulWidget {
-  const _AnalysisRow({
-    required this.doc,
-    required this.fetchUserName,
-  });
-
-  final QueryDocumentSnapshot<Map<String, dynamic>> doc;
-  final Future<String> Function(String uid) fetchUserName;
-
-  @override
-  State<_AnalysisRow> createState() => _AnalysisRowState();
-}
-
-class _AnalysisRowState extends State<_AnalysisRow> {
-  late Future<String> _userNameFuture;
+class _UserNameCellState extends State<_UserNameCell> {
+  late Future<String> _future;
 
   @override
   void initState() {
     super.initState();
-    _loadUser();
+    _future = widget.getUserName(widget.userId);
   }
 
   @override
-  void didUpdateWidget(covariant _AnalysisRow oldWidget) {
+  void didUpdateWidget(covariant _UserNameCell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.doc.id != widget.doc.id) {
-      _loadUser();
+
+    if (oldWidget.userId != widget.userId) {
+      _future = widget.getUserName(widget.userId);
     }
   }
 
-  void _loadUser() {
-    final uid = widget.doc.data()['user_id'] ?? '';
-    _userNameFuture = widget.fetchUserName(uid);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final data = widget.doc.data();
-
-    return ListTile(
-      title: FutureBuilder<String>(
-        future: _userNameFuture,
-        builder: (_, snap) =>
-            Text(snap.data ?? 'Carregando...'),
-      ),
-      subtitle: Text(data['species_name'] ?? '-'),
-      trailing: Text(
-        data['completed_at'] is Timestamp
-            ? (data['completed_at'] as Timestamp)
-            .toDate()
-            .toString()
-            : '-',
-      ),
-    );
-  }
-}
-
-// ================= LOG =================
-
-class _LogTile extends StatelessWidget {
-  const _LogTile({required this.data});
-  final Map<String, dynamic> data;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(data['action'] ?? '-'),
-      subtitle: Text(data['actor_email'] ?? '-'),
+    return FutureBuilder<String>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Text('...');
+        }
+        return Text(snapshot.data!);
+      },
     );
   }
 }

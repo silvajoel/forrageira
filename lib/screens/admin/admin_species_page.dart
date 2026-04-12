@@ -17,10 +17,7 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
   bool _saving = false;
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _speciesStream() {
-    return _firestore
-        .collection('species')
-        .orderBy('name')
-        .snapshots();
+    return _firestore.collection('species').orderBy('name').snapshots();
   }
 
   Future<Map<String, dynamic>?> _getCurrentAdminProfile() async {
@@ -73,9 +70,7 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
 
             if (name.isEmpty || description.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Preencha nome e descrição.'),
-                ),
+                const SnackBar(content: Text('Preencha nome e descricao.')),
               );
               return;
             }
@@ -97,10 +92,10 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
                 });
 
                 await _writeLog(
-                  action: 'Espécie criada',
+                  action: 'Especie criada',
                   type: 'create',
                   typeId: docRef.id,
-                  details: 'Espécie "$name" cadastrada.',
+                  details: 'Especie "$name" cadastrada.',
                 );
               } else {
                 await _firestore.collection('species').doc(docId).update({
@@ -111,10 +106,10 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
                 });
 
                 await _writeLog(
-                  action: 'Espécie atualizada',
+                  action: 'Especie atualizada',
                   type: 'update',
                   typeId: docId,
-                  details: 'Espécie "$name" atualizada.',
+                  details: 'Especie "$name" atualizada.',
                 );
               }
 
@@ -125,16 +120,14 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
                 SnackBar(
                   content: Text(
                     docId == null
-                        ? 'Espécie criada com sucesso.'
-                        : 'Espécie atualizada com sucesso.',
+                        ? 'Especie criada com sucesso.'
+                        : 'Especie atualizada com sucesso.',
                   ),
                 ),
               );
             } catch (e) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Erro ao salvar espécie: $e'),
-                ),
+                SnackBar(content: Text('Erro ao salvar especie: $e')),
               );
             } finally {
               if (mounted) {
@@ -144,7 +137,7 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
           }
 
           return AlertDialog(
-            title: Text(docId == null ? 'Nova espécie' : 'Editar espécie'),
+            title: Text(docId == null ? 'Nova especie' : 'Editar especie'),
             content: SizedBox(
               width: 520,
               child: Column(
@@ -162,7 +155,7 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
                     controller: descCtrl,
                     maxLines: 6,
                     decoration: const InputDecoration(
-                      labelText: 'Descrição',
+                      labelText: 'Descricao',
                       alignLabelWithHint: true,
                       border: OutlineInputBorder(),
                     ),
@@ -183,13 +176,13 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
                 ),
                 child: _saving
                     ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : const Text('Salvar'),
               ),
             ],
@@ -214,10 +207,10 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
       });
 
       await _writeLog(
-        action: nextActive ? 'Espécie reativada' : 'Espécie desativada',
+        action: nextActive ? 'Especie reativada' : 'Especie desativada',
         type: 'update',
         typeId: docId,
-        details: 'Espécie "$name" ficou ${nextActive ? 'ativa' : 'inativa'}.',
+        details: 'Especie "$name" ficou ${nextActive ? 'ativa' : 'inativa'}.',
       );
 
       if (!mounted) return;
@@ -225,17 +218,15 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
         SnackBar(
           content: Text(
             nextActive
-                ? 'Espécie reativada com sucesso.'
-                : 'Espécie desativada com sucesso.',
+                ? 'Especie reativada com sucesso.'
+                : 'Especie desativada com sucesso.',
           ),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao atualizar espécie: $e'),
-        ),
+        SnackBar(content: Text('Erro ao atualizar especie: $e')),
       );
     }
   }
@@ -250,11 +241,11 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(nextActive ? 'Reativar espécie' : 'Desativar espécie'),
+        title: Text(nextActive ? 'Reativar especie' : 'Desativar especie'),
         content: Text(
           nextActive
-              ? 'Deseja reativar a espécie "$name"?'
-              : 'Deseja desativar a espécie "$name"?',
+              ? 'Deseja reativar a especie "$name"?'
+              : 'Deseja desativar a especie "$name"?',
         ),
         actions: [
           TextButton(
@@ -291,6 +282,23 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
     return '-';
   }
 
+  Widget _statusChip(bool active) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: active ? const Color(0x1A1F5B3F) : const Color(0x1AF59E0B),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        active ? 'Ativa' : 'Inativa',
+        style: TextStyle(
+          color: active ? const Color(0xFF1F5B3F) : const Color(0xFF92400E),
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -299,7 +307,7 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
           children: [
             const Expanded(
               child: Text(
-                'Banco de Espécies',
+                'Banco de Especies',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
             ),
@@ -320,7 +328,7 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
             ElevatedButton.icon(
               onPressed: () => _openSpeciesDialog(),
               icon: const Icon(Icons.add),
-              label: const Text('Nova espécie'),
+              label: const Text('Nova especie'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1F5B3F),
                 foregroundColor: Colors.white,
@@ -331,14 +339,14 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
         ),
         const SizedBox(height: 12),
         _card(
-          title: 'Espécies cadastradas',
+          title: 'Especies cadastradas',
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: _speciesStream(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Padding(
                   padding: const EdgeInsets.all(20),
-                  child: Text('Erro ao carregar espécies: ${snapshot.error}'),
+                  child: Text('Erro ao carregar especies: ${snapshot.error}'),
                 );
               }
 
@@ -351,13 +359,15 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
 
               final allDocs = snapshot.data?.docs ?? [];
               final docs = _showOnlyActive
-                  ? allDocs.where((doc) => doc.data()['active'] == true).toList()
+                  ? allDocs
+                      .where((doc) => doc.data()['active'] == true)
+                      .toList()
                   : allDocs;
 
               if (docs.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.all(20),
-                  child: Text('Nenhuma espécie cadastrada.'),
+                  child: Text('Nenhuma especie cadastrada.'),
                 );
               }
 
@@ -366,57 +376,21 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
                 child: DataTable(
                   columns: const [
                     DataColumn(label: Text('Nome')),
-                    DataColumn(label: Text('Descrição')),
                     DataColumn(label: Text('Status')),
-                    DataColumn(label: Text('Criado em')),
                     DataColumn(label: Text('Atualizado em')),
-                    DataColumn(label: Text('Ações')),
+                    DataColumn(label: Text('Acoes')),
                   ],
                   rows: docs.map((doc) {
                     final data = doc.data();
                     final name = (data['name'] ?? '').toString();
                     final description = (data['description'] ?? '').toString();
                     final active = data['active'] == true;
-                    final createdAt = data['created_at'];
                     final updatedAt = data['updated_at'];
 
                     return DataRow(
                       cells: [
                         DataCell(Text(name.isEmpty ? '-' : name)),
-                        DataCell(
-                          SizedBox(
-                            width: 420,
-                            child: Text(
-                              description.isEmpty ? '-' : description,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: active
-                                  ? const Color(0x1A1F5B3F)
-                                  : const Color(0x1AF59E0B),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              active ? 'Ativa' : 'Inativa',
-                              style: TextStyle(
-                                color: active
-                                    ? const Color(0xFF1F5B3F)
-                                    : const Color(0xFF92400E),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                        DataCell(Text(_fmtDate(createdAt))),
+                        DataCell(_statusChip(active)),
                         DataCell(Text(_fmtDate(updatedAt))),
                         DataCell(
                           Row(

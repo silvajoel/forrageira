@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:geocoding/geocoding.dart';
 
 import 'admin_request_analysis_dialog.dart';
 
@@ -14,9 +13,7 @@ class AdminRequestsPage extends StatefulWidget {
 class _AdminRequestsPageState extends State<AdminRequestsPage> {
   final _firestore = FirebaseFirestore.instance;
   final TextEditingController _searchCtrl = TextEditingController();
-
   final Map<String, String> _userNameCache = {};
-  final Map<String, String> _locationCache = {};
 
   @override
   void dispose() {
@@ -36,13 +33,24 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
   }
 
   String _normalizeStatus(String raw) {
-    final s = raw.trim().toLowerCase();
+    final value = raw.trim().toLowerCase();
 
-    if (s.isEmpty) return 'pending';
-    if (s == 'pending' || s == 'pendente') return 'pending';
-    if (s == 'completed' || s == 'finalizado') return 'completed';
+    if (value.isEmpty) return 'pending';
+    if (value == 'pending' || value == 'pendente') return 'pending';
+    if (value == 'completed' || value == 'finalizado') return 'completed';
 
-    return s;
+    return value;
+  }
+
+  int _statusPriority(String raw) {
+    switch (_normalizeStatus(raw)) {
+      case 'pending':
+        return 0;
+      case 'completed':
+        return 1;
+      default:
+        return 2;
+    }
   }
 
   String _statusLabel(String raw) {
@@ -63,58 +71,18 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
     }
   }
 
+  DateTime _createdAtOf(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    final createdAt = doc.data()['created_at'];
+    if (createdAt is Timestamp) return createdAt.toDate();
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
   String _fmtDate(dynamic value) {
     if (value is Timestamp) {
       final d = value.toDate();
       return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
     }
     return '-';
-  }
-
-  Future<String> _resolveLocation(
-      dynamic latitude,
-      dynamic longitude,
-      ) async {
-    final double? lat = _toDouble(latitude);
-    final double? lng = _toDouble(longitude);
-
-    if (lat == null || lng == null) return '-';
-
-    final key = '$lat,$lng';
-    if (_locationCache.containsKey(key)) {
-      return _locationCache[key]!;
-    }
-
-    try {
-      final placemarks = await placemarkFromCoordinates(lat, lng);
-
-      if (placemarks.isEmpty) {
-        _locationCache[key] = '$lat, $lng';
-        return _locationCache[key]!;
-      }
-
-      final p = placemarks.first;
-
-      final parts = <String>[
-        if ((p.subLocality ?? '').trim().isNotEmpty) p.subLocality!.trim(),
-        if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
-        if ((p.administrativeArea ?? '').trim().isNotEmpty)
-          p.administrativeArea!.trim(),
-      ];
-
-      final text = parts.isNotEmpty ? parts.join(' - ') : '$lat, $lng';
-      _locationCache[key] = text;
-      return text;
-    } catch (_) {
-      _locationCache[key] = '$lat, $lng';
-      return _locationCache[key]!;
-    }
-  }
-
-  double? _toDouble(dynamic value) {
-    if (value == null) return null;
-    if (value is num) return value.toDouble();
-    return double.tryParse(value.toString().replaceAll(',', '.'));
   }
 
   Future<void> _openRequest(String requestId) async {
@@ -134,14 +102,14 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
     return ListView(
       children: [
         const Text(
-          'Solicitações Pendentes',
+          'Solicitacoes',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 12),
         _searchBar(),
         const SizedBox(height: 12),
         _card(
-          title: 'Lista de solicitações',
+          title: 'Lista de solicitacoes',
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: _usersStream(),
             builder: (context, usersSnapshot) {
@@ -160,7 +128,7 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                     return Padding(
                       padding: const EdgeInsets.all(20),
                       child: Text(
-                        'Erro ao carregar solicitações: ${snapshot.error}',
+                        'Erro ao carregar solicitacoes: ${snapshot.error}',
                       ),
                     );
                   }
@@ -180,19 +148,17 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                     final id = doc.id.toLowerCase();
                     final name = (data['name'] ?? '').toString().toLowerCase();
                     final notes =
-                    (data['notes'] ?? '').toString().toLowerCase();
+                        (data['notes'] ?? '').toString().toLowerCase();
                     final userId =
-                    (data['user_id'] ?? '').toString().toLowerCase();
+                        (data['user_id'] ?? '').toString().toLowerCase();
                     final userName =
-                    (_userNameCache[data['user_id']] ?? '').toLowerCase();
-
+                        (_userNameCache[data['user_id']] ?? '').toLowerCase();
                     final status = _normalizeStatus(
                       (data['status'] ?? '').toString(),
                     );
 
-                    final visible = status == 'pending' ||
-                        status == 'completed';
-
+                    final visible =
+                        status == 'pending' || status == 'completed';
                     if (!visible) return false;
                     if (q.isEmpty) return true;
 
@@ -201,12 +167,21 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                         notes.contains(q) ||
                         userId.contains(q) ||
                         userName.contains(q);
-                  }).toList();
+                  }).toList()
+                    ..sort((a, b) {
+                      final statusCompare = _statusPriority(
+                        (a.data()['status'] ?? '').toString(),
+                      ).compareTo(
+                        _statusPriority((b.data()['status'] ?? '').toString()),
+                      );
+                      if (statusCompare != 0) return statusCompare;
+                      return _createdAtOf(b).compareTo(_createdAtOf(a));
+                    });
 
                   if (filteredDocs.isEmpty) {
                     return const Padding(
                       padding: EdgeInsets.all(20),
-                      child: Text('Nenhuma solicitação encontrada.'),
+                      child: Text('Nenhuma solicitacao encontrada.'),
                     );
                   }
 
@@ -214,28 +189,20 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                     scrollDirection: Axis.horizontal,
                     child: DataTable(
                       columns: const [
-
-                        DataColumn(label: Text('Status')),
-                        //DataColumn(label: Text('ID')),
                         DataColumn(label: Text('Data')),
-                        DataColumn(label: Text('Nome')),
-                        DataColumn(label: Text('Usuário')),
-                        DataColumn(label: Text('Local')),
-                        DataColumn(label: Text('Observações')),
-                        DataColumn(label: Text('Ações')),
-
-
+                        DataColumn(label: Text('Status')),
+                        DataColumn(label: Text('Usuario')),
+                        DataColumn(label: Text('Acoes')),
                       ],
                       rows: filteredDocs.map((doc) {
                         final data = doc.data();
                         final rawStatus = (data['status'] ?? '').toString();
-                        final name = (data['name'] ?? '').toString();
                         final userId = (data['user_id'] ?? '').toString();
                         final userName = _userNameCache[userId];
-                        final notes = (data['notes'] ?? '').toString();
 
                         return DataRow(
                           cells: [
+                            DataCell(Text(_fmtDate(data['created_at']))),
                             DataCell(
                               Row(
                                 children: [
@@ -252,9 +219,6 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                                 ],
                               ),
                             ),
-                            //DataCell(Text(doc.id)),
-                            DataCell(Text(_fmtDate(data['created_at']))),
-                            DataCell(Text(name.isEmpty ? '-' : name)),
                             DataCell(
                               Text(
                                 (userName ?? '').trim().isNotEmpty
@@ -263,62 +227,10 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                               ),
                             ),
                             DataCell(
-                              SizedBox(
-                                width: 260,
-                                child: FutureBuilder<String>(
-                                  future: _resolveLocation(
-                                    data['latitude'],
-                                    data['longitude'],
-                                  ),
-                                  builder: (context, locSnap) {
-                                    if (locSnap.connectionState ==
-                                        ConnectionState.waiting) {
-                                      return const Text('Carregando...');
-                                    }
-                                    return Text(
-                                      locSnap.data ?? '-',
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              SizedBox(
-                                width: 240,
-                                child: Text(
-                                  notes.isEmpty ? '-' : notes,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    tooltip: _normalizeStatus(rawStatus) == 'completed'
-                                        ? 'Visualizar análise finalizada'
-                                        : 'Analisar solicitação',
-                                    onPressed: () => _openRequest(doc.id),
-                                    icon: Icon(
-                                      _normalizeStatus(rawStatus) == 'completed'
-                                          ? Icons.visibility_outlined
-                                          : Icons.search,
-                                    ),
-                                  ),
-                                  if (_normalizeStatus(rawStatus) == 'completed')
-                                    const Text(
-                                      'Bloqueada',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF2E7D32),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                ],
+                              IconButton(
+                                tooltip: 'Abrir solicitacao',
+                                onPressed: () => _openRequest(doc.id),
+                                icon: const Icon(Icons.open_in_new),
                               ),
                             ),
                           ],
@@ -354,7 +266,7 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
         onChanged: (_) => setState(() {}),
         decoration: const InputDecoration(
           border: InputBorder.none,
-          hintText: 'Buscar por nome, observações, usuário ou id...',
+          hintText: 'Buscar por nome, usuario, observacoes ou id...',
           prefixIcon: Icon(Icons.search),
         ),
       ),
