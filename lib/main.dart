@@ -15,6 +15,7 @@ import 'package:forrageira/services/forage_service.dart';
 import 'package:forrageira/services/i_forage_service.dart';
 import 'package:forrageira/services/location_service.dart';
 import 'package:forrageira/services/notification_service.dart';
+import 'package:forrageira/services/pending_analysis_queue_service.dart';
 import 'package:forrageira/services/plesk_image_storage_service.dart';
 import 'package:forrageira/screens/admin/reset_password_page.dart';
 
@@ -71,6 +72,7 @@ void main() async {
         ChangeNotifierProvider<IForageService>(
           create: (_) => ForageService(),
         ),
+        ChangeNotifierProvider(create: (_) => PendingAnalysisQueueService()),
       ],
       child: const MyApp(),
     ),

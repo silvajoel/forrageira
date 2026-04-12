@@ -48,16 +48,6 @@ class ForageService extends ChangeNotifier implements IForageService {
     } catch (e) {
       debugPrint('Falha ao notificar admins: $e');
     }
-
-    try {
-      await _notificationService.notifyUserAnalysisReceived(
-        analysisId: requestRef.id,
-        userId: userId,
-        forageName: name,
-      );
-    } catch (e) {
-      debugPrint('Falha ao notificar usuario sobre recebimento: $e');
-    }
   }
 
   @override

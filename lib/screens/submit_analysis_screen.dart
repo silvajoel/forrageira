@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../services/i_forage_service.dart';
 import '../services/i_image_storage_service.dart';
 import '../services/i_location_service.dart';
+import '../services/pending_analysis_queue_service.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/image_viewer_dialog.dart';
 
@@ -48,6 +49,11 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
   void initState() {
     super.initState();
     _loadFirstSubmissionState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncPendingAnalyses();
+      context.read<PendingAnalysisQueueService>().ensureLoaded();
+    });
   }
 
   @override
@@ -107,6 +113,14 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     setState(() => _selectedImages.removeAt(index));
   }
 
+  Future<void> _syncPendingAnalyses() async {
+    final queueService = context.read<PendingAnalysisQueueService>();
+    await queueService.syncPendingAnalyses(
+      forageService: context.read<IForageService>(),
+      imageStorageService: widget.imageStorageService,
+    );
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -129,24 +143,41 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     setState(() => _isUploading = true);
 
     final forageService = context.read<IForageService>();
+    final queueService = context.read<PendingAnalysisQueueService>();
 
     try {
       final location = await widget.locationService.getCurrentLocation();
-      final imageUrls = await widget.imageStorageService.uploadImages(
-        _selectedImages,
-        uid,
-      );
+      try {
+        final imageUrls = await widget.imageStorageService.uploadImages(
+          _selectedImages,
+          uid,
+        );
 
-      await forageService.createAnalysisRequest(
-        name: _nameController.text.trim(),
-        notes: _notesController.text.trim(),
-        latitude: location.latitude,
-        longitude: location.longitude,
-        imageUrls: imageUrls,
-        userId: uid,
-      );
+        await forageService.createAnalysisRequest(
+          name: _nameController.text.trim(),
+          notes: _notesController.text.trim(),
+          latitude: location.latitude,
+          longitude: location.longitude,
+          imageUrls: imageUrls,
+          userId: uid,
+        );
 
-      _showSnack('Forrageira enviada com sucesso!');
+        _showSnack('Forrageira enviada com sucesso!');
+      } catch (_) {
+        await queueService.enqueue(
+          name: _nameController.text.trim(),
+          notes: _notesController.text.trim(),
+          userId: uid,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          images: _selectedImages,
+        );
+
+        _showSnack(
+          'Analise salva offline. Ela sera encaminhada assim que houver internet.',
+        );
+      }
+
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/home');
       }
@@ -170,6 +201,10 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     final theme = Theme.of(context);
     final captured = _selectedImages.length;
     final isCaptureComplete = captured >= _maxImages;
+    final userId = _userId ?? '';
+    final queueService = context.watch<PendingAnalysisQueueService>();
+    final pendingCount =
+        userId.isEmpty ? 0 : queueService.pendingCountForUser(userId);
 
     return Scaffold(
       appBar: AppBar(
@@ -218,6 +253,10 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
                 const SizedBox(height: 24),
                 _buildCaptureStatus(theme),
                 const SizedBox(height: 16),
+                if (pendingCount > 0) ...[
+                  _buildOfflineSyncCard(theme, pendingCount, queueService),
+                  const SizedBox(height: 16),
+                ],
                 if (_isCheckingFirstSubmission)
                   const Center(
                     child: Padding(
@@ -317,6 +356,68 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(value: captured / _maxImages),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfflineSyncCard(
+    ThemeData theme,
+    int pendingCount,
+    PendingAnalysisQueueService queueService,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E6),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE1C062)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.cloud_off_outlined, color: Color(0xFF8A6B14)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Envios aguardando internet',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                '$pendingCount',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            queueService.isSyncing
+                ? 'Estamos tentando sincronizar suas analises pendentes.'
+                : 'Essas analises serao enviadas automaticamente quando a conexao voltar.',
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: queueService.isSyncing ? null : _syncPendingAnalyses,
+              icon: queueService.isSyncing
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync),
+              label: const Text('Tentar sincronizar agora'),
+            ),
           ),
         ],
       ),

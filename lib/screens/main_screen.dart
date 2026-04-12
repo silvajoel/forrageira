@@ -6,9 +6,12 @@ import 'package:forrageira/screens/home_screen.dart';
 import 'package:forrageira/screens/profile_screen.dart';
 import 'package:forrageira/screens/submit_analysis_screen.dart';
 import 'package:forrageira/screens/notifications_screen.dart';
+import 'package:forrageira/services/i_forage_service.dart';
 import 'package:forrageira/services/location_service.dart';
+import 'package:forrageira/services/pending_analysis_queue_service.dart';
 import 'package:forrageira/widgets/bottom_nav_custom.dart';
 import 'package:forrageira/services/plesk_image_storage_service.dart';
+import 'package:provider/provider.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
@@ -19,6 +22,7 @@ class MainScreen extends StatefulWidget {
 
 class MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  final _imageStorageService = const PleskImageStorageService();
 
   AnalysisRequest? _selectedAnalysis;
   bool _showNotifications = false;
@@ -28,10 +32,22 @@ class MainScreenState extends State<MainScreen> {
     const AnalysisScreen(),
     SubmitAnalysisScreen(
       locationService: LocationService(),
-      imageStorageService: const PleskImageStorageService(),
+      imageStorageService: _imageStorageService,
     ),
     const ProfileScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<PendingAnalysisQueueService>().syncPendingAnalyses(
+            forageService: context.read<IForageService>(),
+            imageStorageService: _imageStorageService,
+          );
+    });
+  }
 
   // 🔹 Troca de abas
   void setIndex(int index) {
@@ -86,7 +102,6 @@ class MainScreenState extends State<MainScreen> {
           NotificationsScreen(),
         ],
       ),
-
       bottomNavigationBar: BottomNavCustom(
         currentIndex: _currentIndex > 3 ? 0 : _currentIndex,
         onTap: _onTap,

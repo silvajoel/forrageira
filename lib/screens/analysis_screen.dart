@@ -1,10 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:forrageira/models/analysis_request.dart';
-import 'package:forrageira/screens/analysis_detail_screen.dart';
 import 'package:forrageira/screens/main_screen.dart';
 import 'package:forrageira/services/i_forage_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:forrageira/services/pending_analysis_queue_service.dart';
 import 'package:provider/provider.dart';
+
 import '../widgets/analysis_item.dart';
 
 class AnalysisScreen extends StatelessWidget {
@@ -12,23 +13,51 @@ class AnalysisScreen extends StatelessWidget {
 
   String _statusLabel(String status) {
     switch (status) {
-      case 'pending':   return 'Em análise';
-      case 'completed': return 'Finalizado';
-      default:          return 'Desconhecido';
+      case 'pending':
+        return 'Em analise';
+      case 'completed':
+        return 'Finalizado';
+      case 'queued_offline':
+        return 'Aguardando internet';
+      default:
+        return 'Desconhecido';
     }
   }
 
   String _formatDate(DateTime? date) {
     if (date == null) return '';
-    return "${date.hour}:${date.minute.toString().padLeft(2, '0')} "
-        "${date.day}/${date.month}/${date.year}";
+    return '${date.hour}:${date.minute.toString().padLeft(2, '0')} '
+        '${date.day}/${date.month}/${date.year}';
+  }
+
+  List<AnalysisRequest> _buildOfflineAnalyses(
+    PendingAnalysisQueueService queueService,
+    String userId,
+  ) {
+    if (userId.isEmpty) return const [];
+
+    return queueService.itemsForUser(userId).map((item) {
+      return AnalysisRequest(
+        id: 'offline:${item.localId}',
+        name: item.name,
+        notes: item.notes,
+        userId: item.userId,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        status: 'queued_offline',
+        imageUrls: const [],
+        createdAt: item.createdAt,
+      );
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme        = Theme.of(context);
+    final theme = Theme.of(context);
     final forageService = context.read<IForageService>();
-    final userId       = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final queueService = context.watch<PendingAnalysisQueueService>();
+    final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final offlineItems = _buildOfflineAnalyses(queueService, userId);
 
     return Scaffold(
       appBar: AppBar(
@@ -36,7 +65,7 @@ class AnalysisScreen extends StatelessWidget {
           children: [
             Icon(Icons.grass),
             SizedBox(width: 8),
-            Text('Minhas Análises'),
+            Text('Minhas analises'),
           ],
         ),
         actions: const [
@@ -49,7 +78,6 @@ class AnalysisScreen extends StatelessWidget {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -58,35 +86,47 @@ class AnalysisScreen extends StatelessWidget {
                   children: [
                     const SizedBox(height: 20),
                     Text(
-                      'Minhas Análises',
+                      'Minhas analises',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    if (offlineItems.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        '${offlineItems.length} analise(s) estao aguardando internet.',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
                     const SizedBox(height: 12),
                   ],
                 ),
               ),
             ),
-
             StreamBuilder<List<AnalysisRequest>>(
               stream: forageService.watchAllUserForages(userId),
               builder: (context, snapshot) {
-
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const SliverToBoxAdapter(
                     child: Center(child: CircularProgressIndicator()),
                   );
                 }
 
-                final items = snapshot.data ?? [];
+                final remoteItems = snapshot.data ?? [];
+                final items = [...offlineItems, ...remoteItems]..sort((a, b) {
+                    final aDate =
+                        a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+                    final bDate =
+                        b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+                    return bDate.compareTo(aDate);
+                  });
 
                 if (items.isEmpty) {
                   return const SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.all(20),
                       child: Center(
-                        child: Text("Nenhuma análise enviada ainda."),
+                        child: Text('Nenhuma analise enviada ainda.'),
                       ),
                     ),
                   );
@@ -96,7 +136,7 @@ class AnalysisScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
-                          (context, index) {
+                      (context, index) {
                         final item = items[index];
 
                         return Padding(
@@ -105,15 +145,17 @@ class AnalysisScreen extends StatelessWidget {
                             title: item.name,
                             date: _formatDate(item.createdAt),
                             status: _statusLabel(item.status),
-                            // Primeira imagem como capa
                             coverImageUrl: item.imageUrls.isNotEmpty
                                 ? item.imageUrls.first
                                 : null,
-                            onTap: () {
-                              final mainScreen =
-                              context.findAncestorStateOfType<MainScreenState>();
-                              mainScreen?.openAnalysisDetail(item);
-                            },
+                            onTap: item.status == 'queued_offline'
+                                ? null
+                                : () {
+                                    final mainScreen =
+                                        context.findAncestorStateOfType<
+                                            MainScreenState>();
+                                    mainScreen?.openAnalysisDetail(item);
+                                  },
                           ),
                         );
                       },

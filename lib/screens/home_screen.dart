@@ -4,12 +4,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:forrageira/models/analysis_request.dart';
 import 'package:forrageira/models/app_notification.dart';
-import 'package:forrageira/services/app_notification_service.dart';
 import 'package:forrageira/screens/main_screen.dart';
+import 'package:forrageira/services/app_notification_service.dart';
 import 'package:forrageira/services/auth_service.dart';
 import 'package:forrageira/services/i_forage_service.dart';
+import 'package:forrageira/services/pending_analysis_queue_service.dart';
 import 'package:forrageira/services/user_service.dart';
 import 'package:provider/provider.dart';
+
 import '../widgets/analysis_item.dart';
 import '../widgets/notifications_modal.dart';
 
@@ -23,27 +25,55 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String _statusLabel(String status) {
     switch (status) {
-      case 'pending':   return 'Em análise';
-      case 'completed': return 'Finalizado';
-      default:          return 'Desconhecido';
+      case 'pending':
+        return 'Em analise';
+      case 'completed':
+        return 'Finalizado';
+      case 'queued_offline':
+        return 'Aguardando internet';
+      default:
+        return 'Desconhecido';
     }
   }
 
   String _formatDate(DateTime? date) {
     if (date == null) return '';
-    return "${date.hour}:${date.minute.toString().padLeft(2, '0')} "
-        "${date.day}/${date.month}/${date.year}";
+    return '${date.hour}:${date.minute.toString().padLeft(2, '0')} '
+        '${date.day}/${date.month}/${date.year}';
+  }
+
+  List<AnalysisRequest> _buildOfflineAnalyses(
+    PendingAnalysisQueueService queueService,
+    String userId,
+  ) {
+    if (userId.isEmpty) return const [];
+
+    return queueService.itemsForUser(userId).map((item) {
+      return AnalysisRequest(
+        id: 'offline:${item.localId}',
+        name: item.name,
+        notes: item.notes,
+        userId: item.userId,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        status: 'queued_offline',
+        imageUrls: const [],
+        createdAt: item.createdAt,
+      );
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme         = Theme.of(context);
-    final authService   = context.watch<AuthService>();
+    final theme = Theme.of(context);
+    final authService = context.watch<AuthService>();
     final forageService = context.read<IForageService>();
+    final queueService = context.watch<PendingAnalysisQueueService>();
 
-    final user     = authService.currentUser;
-    final username = user?.displayName ?? "Usuário";
-    final userId   = user?.uid ?? '';
+    final user = authService.currentUser;
+    final username = user?.displayName ?? 'Usuario';
+    final userId = user?.uid ?? '';
+    final offlineItems = _buildOfflineAnalyses(queueService, userId);
 
     return Scaffold(
       appBar: AppBar(
@@ -55,8 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
-          if (userId.isNotEmpty)
-            _NotificationBellButton(userId: userId),
+          if (userId.isNotEmpty) _NotificationBellButton(userId: userId),
         ],
       ),
       body: SafeArea(
@@ -83,14 +112,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  "Bem-vindo, $username!",
+                                  'Bem-vindo, $username!',
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  "Veja suas análises recentes abaixo.",
+                                  'Veja suas analises recentes abaixo.',
                                   style: theme.textTheme.bodySmall,
                                 ),
                               ],
@@ -99,35 +128,59 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                     ),
-
+                    if (offlineItems.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF8E6),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE1C062)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.cloud_off_outlined,
+                              color: Color(0xFF8A6B14),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                '${offlineItems.length} analise(s) aguardando internet para envio.',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Minhas Análises',
+                          'Minhas Analises',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         TextButton(
                           onPressed: () {
-                            final mainScreen =
-                            context.findAncestorStateOfType<MainScreenState>();
+                            final mainScreen = context
+                                .findAncestorStateOfType<MainScreenState>();
                             mainScreen?.setIndex(1);
                           },
-                          child: const Text("Ver todas"),
+                          child: const Text('Ver todas'),
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 12),
                   ],
                 ),
               ),
             ),
-
             StreamBuilder<List<AnalysisRequest>>(
               stream: forageService.watchUserForages(userId),
               builder: (context, snapshot) {
@@ -137,14 +190,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }
 
-                final items = snapshot.data ?? [];
+                final remoteItems = snapshot.data ?? [];
+                final items = [...offlineItems, ...remoteItems]..sort((a, b) {
+                    final aDate =
+                        a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+                    final bDate =
+                        b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+                    return bDate.compareTo(aDate);
+                  });
 
                 if (items.isEmpty) {
                   return const SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.all(20),
                       child: Center(
-                        child: Text("Nenhuma análise enviada ainda."),
+                        child: Text('Nenhuma analise enviada ainda.'),
                       ),
                     ),
                   );
@@ -154,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
-                          (context, index) {
+                      (context, index) {
                         final item = items[index];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
@@ -165,11 +225,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             coverImageUrl: item.imageUrls.isNotEmpty
                                 ? item.imageUrls.first
                                 : null,
-                            onTap: () {
-                              final mainScreen =
-                              context.findAncestorStateOfType<MainScreenState>();
-                              mainScreen?.openAnalysisDetail(item);
-                            },
+                            onTap: item.status == 'queued_offline'
+                                ? null
+                                : () {
+                                    final mainScreen =
+                                        context.findAncestorStateOfType<
+                                            MainScreenState>();
+                                    mainScreen?.openAnalysisDetail(item);
+                                  },
                           ),
                         );
                       },
@@ -179,7 +242,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
-
             const SliverToBoxAdapter(child: SizedBox(height: 30)),
           ],
         ),
@@ -188,14 +250,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// Contador de não lidas (inclui notificações de papel admin) + SnackBar ao chegar nova.
 class _NotificationBellButton extends StatefulWidget {
   final String userId;
 
   const _NotificationBellButton({required this.userId});
 
   @override
-  State<_NotificationBellButton> createState() => _NotificationBellButtonState();
+  State<_NotificationBellButton> createState() =>
+      _NotificationBellButtonState();
 }
 
 class _NotificationBellButtonState extends State<_NotificationBellButton> {
@@ -219,8 +281,8 @@ class _NotificationBellButtonState extends State<_NotificationBellButton> {
   }
 
   void _onProfile(DocumentSnapshot<Map<String, dynamic>> snap) {
-    for (final s in _notifSubs) {
-      s.cancel();
+    for (final subscription in _notifSubs) {
+      subscription.cancel();
     }
     _notifSubs.clear();
 
@@ -232,7 +294,7 @@ class _NotificationBellButtonState extends State<_NotificationBellButton> {
 
     void emit() {
       final merged = isAdmin ? [...userItems, ...adminItems] : userItems;
-      final unread = merged.where((n) => !n.read).length;
+      final unread = merged.where((notification) => !notification.read).length;
       final prev = _prevUnread;
       final showToast = prev != null &&
           unread > prev &&
@@ -247,7 +309,7 @@ class _NotificationBellButtonState extends State<_NotificationBellButton> {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Você tem novas notificações.'),
+              content: const Text('Voce tem novas notificacoes.'),
               duration: const Duration(seconds: 5),
               action: SnackBarAction(
                 label: 'Abrir',
@@ -267,6 +329,7 @@ class _NotificationBellButtonState extends State<_NotificationBellButton> {
         emit();
       }),
     );
+
     if (isAdmin) {
       _notifSubs.add(
         _service.watchAdminRoleNotifications().listen((list) {
@@ -282,8 +345,8 @@ class _NotificationBellButtonState extends State<_NotificationBellButton> {
   @override
   void dispose() {
     _profileSub?.cancel();
-    for (final s in _notifSubs) {
-      s.cancel();
+    for (final subscription in _notifSubs) {
+      subscription.cancel();
     }
     super.dispose();
   }
@@ -291,7 +354,7 @@ class _NotificationBellButtonState extends State<_NotificationBellButton> {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      tooltip: 'Notificações',
+      tooltip: 'Notificacoes',
       icon: Stack(
         clipBehavior: Clip.none,
         children: [
