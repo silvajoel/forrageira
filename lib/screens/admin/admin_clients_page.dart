@@ -7,7 +7,14 @@ import 'package:forrageira/services/audit_log_service.dart';
 import 'package:forrageira/services/user_service.dart';
 
 class AdminClientsPage extends StatefulWidget {
-  const AdminClientsPage({super.key});
+  final String initialStatusFilter;
+  final ValueChanged<String>? onStatusFilterChanged;
+
+  const AdminClientsPage({
+    super.key,
+    this.initialStatusFilter = 'todos',
+    this.onStatusFilterChanged,
+  });
 
   @override
   State<AdminClientsPage> createState() => _AdminClientsPageState();
@@ -22,10 +29,27 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
 
   final ValueNotifier<String> _searchNotifier = ValueNotifier<String>('');
   final ValueNotifier<String> _roleFilterNotifier =
-      ValueNotifier<String>('todos');
+  ValueNotifier<String>('todos');
+  final ValueNotifier<String> _statusFilterNotifier =
+  ValueNotifier<String>('todos');
 
   bool _savingAction = false;
   Timer? _searchDebounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _statusFilterNotifier.value = _normalizeStatusFilter(widget.initialStatusFilter);
+  }
+
+  @override
+  void didUpdateWidget(covariant AdminClientsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextFilter = _normalizeStatusFilter(widget.initialStatusFilter);
+    if (nextFilter != _statusFilterNotifier.value) {
+      _statusFilterNotifier.value = nextFilter;
+    }
+  }
 
   @override
   void dispose() {
@@ -33,6 +57,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
     _searchCtrl.dispose();
     _searchNotifier.dispose();
     _roleFilterNotifier.dispose();
+    _statusFilterNotifier.dispose();
     super.dispose();
   }
 
@@ -43,11 +68,27 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
         .snapshots();
   }
 
+  String _normalizeStatusFilter(String value) {
+    switch (value.trim().toLowerCase()) {
+      case 'ativos':
+      case 'ativo':
+      case 'active':
+        return 'ativos';
+      case 'inativos':
+      case 'inativo':
+      case 'inactive':
+        return 'inativos';
+      default:
+        return 'todos';
+    }
+  }
+
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _applyFilters(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs, {
-    required String search,
-    required String roleFilter,
-  }) {
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs, {
+        required String search,
+        required String roleFilter,
+        required String statusFilter,
+      }) {
     final query = search.trim().toLowerCase();
 
     return docs.where((doc) {
@@ -55,13 +96,17 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
       final name = (data['name'] ?? '').toString().toLowerCase();
       final email = (data['email'] ?? '').toString().toLowerCase();
       final role = (data['role'] ?? 'user').toString().toLowerCase();
+      final active = UserService.isProfileActive(data);
 
       final matchSearch =
           query.isEmpty || name.contains(query) || email.contains(query);
 
       final matchRole = roleFilter == 'todos' || role == roleFilter;
+      final matchStatus = statusFilter == 'todos' ||
+          (statusFilter == 'ativos' && active) ||
+          (statusFilter == 'inativos' && !active);
 
-      return matchSearch && matchRole;
+      return matchSearch && matchRole && matchStatus;
     }).toList();
   }
 
@@ -80,7 +125,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
       builder: (context) {
         return AlertDialog(
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: const Row(
             children: [
               Icon(Icons.admin_panel_settings_outlined),
@@ -90,7 +135,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
           ),
           content: Text(
             'Deseja realmente tornar "$name" um administrador?\n\n'
-            'Esse usuário passará a ter acesso às funções administrativas do sistema.',
+                'Esse usuário passará a ter acesso às funções administrativas do sistema.',
           ),
           actions: [
             TextButton(
@@ -149,7 +194,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
       builder: (context) {
         return AlertDialog(
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: Row(
             children: [
               Icon(
@@ -269,7 +314,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
               ),
               content: const Text(
                 'Este usuário já possui registros de análise vinculados e não pode ser excluído.\n\n'
-                'Nesse caso, apenas a inativação é permitida.',
+                    'Nesse caso, apenas a inativação é permitida.',
               ),
               actions: [
                 FilledButton(
@@ -301,7 +346,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
               ],
             ),
             content:
-                Text('Não foi possível validar os vínculos do usuário.\n\n$e'),
+            Text('Não foi possível validar os vínculos do usuário.\n\n$e'),
             actions: [
               FilledButton(
                 onPressed: () => Navigator.pop(context),
@@ -320,7 +365,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
       builder: (context) {
         return AlertDialog(
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: const Row(
             children: [
               Icon(Icons.delete_outline, color: Colors.red),
@@ -330,7 +375,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
           ),
           content: Text(
             'Deseja realmente excluir "$name"?\n\n'
-            'Essa ação remove o documento do usuário no Firestore.',
+                'Essa ação remove o documento do usuário no Firestore.',
           ),
           actions: [
             TextButton(
@@ -393,7 +438,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
               Text(
-                'Gestao de Usuarios',
+                'Gestão de Usuários',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
@@ -426,6 +471,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
   Widget _buildFilters({
     required int totalFiltered,
     required String roleFilter,
+    required String statusFilter,
   }) {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -478,12 +524,37 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
                     borderRadius: BorderRadius.circular(14),
                     items: const [
                       DropdownMenuItem(value: 'todos', child: Text('Todos')),
-                      DropdownMenuItem(value: 'user', child: Text('Usuarios')),
+                      DropdownMenuItem(value: 'user', child: Text('Usuários')),
                       DropdownMenuItem(value: 'admin', child: Text('Admins')),
                     ],
                     onChanged: (value) {
                       if (value != null) {
                         _roleFilterNotifier.value = value;
+                      }
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: statusFilter,
+                    borderRadius: BorderRadius.circular(14),
+                    items: const [
+                      DropdownMenuItem(value: 'todos', child: Text('Todos os status')),
+                      DropdownMenuItem(value: 'ativos', child: Text('Ativos')),
+                      DropdownMenuItem(value: 'inativos', child: Text('Inativos')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        _statusFilterNotifier.value = value;
+                        widget.onStatusFilterChanged?.call(value);
                       }
                     },
                   ),
@@ -497,7 +568,10 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
               _statChip(Icons.people_alt_outlined, '$totalFiltered usuário(s)'),
               const SizedBox(width: 10),
               _statChip(Icons.verified_user_outlined,
-                  'Filtro: ${_labelRole(roleFilter)}'),
+                  'Perfil: ${_labelRole(roleFilter)}'),
+              const SizedBox(width: 10),
+              _statChip(Icons.toggle_on_outlined,
+                  'Status: ${_labelStatus(statusFilter)}'),
             ],
           ),
         ],
@@ -534,7 +608,18 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
       case 'admin':
         return 'Admins';
       case 'user':
-        return 'Usuarios';
+        return 'Usuários';
+      default:
+        return 'Todos';
+    }
+  }
+
+  String _labelStatus(String status) {
+    switch (status) {
+      case 'ativos':
+        return 'Ativos';
+      case 'inativos':
+        return 'Inativos';
       default:
         return 'Todos';
     }
@@ -550,7 +635,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        isAdmin ? 'Admin' : 'Usuario',
+        isAdmin ? 'Admin' : 'Usuário',
         style: TextStyle(
           fontWeight: FontWeight.w700,
           color: isAdmin ? const Color(0xFF2E7D32) : const Color(0xFF4B5563),
@@ -602,7 +687,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content:
-                    Text('Ação de editar ainda não implementada nesta tela.'),
+                Text('Ação de editar ainda não implementada nesta tela.'),
               ),
             );
           },
@@ -752,14 +837,14 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
 
             final docs = snapshot.data?.docs ?? [];
             final sortedDocs = [...docs]..sort((a, b) {
-                final aTs = UserService.userCreatedTimestamp(a.data());
-                final bTs = UserService.userCreatedTimestamp(b.data());
-                final aDate =
-                    aTs?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
-                final bDate =
-                    bTs?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
-                return bDate.compareTo(aDate);
-              });
+              final aTs = UserService.userCreatedTimestamp(a.data());
+              final bTs = UserService.userCreatedTimestamp(b.data());
+              final aDate =
+                  aTs?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+              final bDate =
+                  bTs?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+              return bDate.compareTo(aDate);
+            });
 
             return ValueListenableBuilder<String>(
               valueListenable: _searchNotifier,
@@ -767,52 +852,59 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
                 return ValueListenableBuilder<String>(
                   valueListenable: _roleFilterNotifier,
                   builder: (context, roleFilterValue, __) {
-                    final filteredDocs = _applyFilters(
-                      sortedDocs,
-                      search: searchValue,
-                      roleFilter: roleFilterValue,
-                    );
-
-                    return Column(
-                      children: [
-                        _buildFilters(
-                          totalFiltered: filteredDocs.length,
+                    return ValueListenableBuilder<String>(
+                      valueListenable: _statusFilterNotifier,
+                      builder: (context, statusFilterValue, ___) {
+                        final filteredDocs = _applyFilters(
+                          sortedDocs,
+                          search: searchValue,
                           roleFilter: roleFilterValue,
-                        ),
-                        const SizedBox(height: 18),
-                        if (filteredDocs.isEmpty)
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(40),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              border:
+                          statusFilter: statusFilterValue,
+                        );
+
+                        return Column(
+                          children: [
+                            _buildFilters(
+                              totalFiltered: filteredDocs.length,
+                              roleFilter: roleFilterValue,
+                              statusFilter: statusFilterValue,
+                            ),
+                            const SizedBox(height: 18),
+                            if (filteredDocs.isEmpty)
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(40),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border:
                                   Border.all(color: const Color(0xFFE5E7EB)),
-                            ),
-                            child: const Column(
-                              children: [
-                                Icon(Icons.people_outline,
-                                    size: 44, color: Color(0xFF9CA3AF)),
-                                SizedBox(height: 12),
-                                Text(
-                                  'Nenhum usuário encontrado.',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
                                 ),
-                                SizedBox(height: 6),
-                                Text(
-                                  'Tente ajustar a busca ou o filtro selecionado.',
-                                  style: TextStyle(color: Color(0xFF6B7280)),
+                                child: const Column(
+                                  children: [
+                                    Icon(Icons.people_outline,
+                                        size: 44, color: Color(0xFF9CA3AF)),
+                                    SizedBox(height: 12),
+                                    Text(
+                                      'Nenhum usuário encontrado.',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    SizedBox(height: 6),
+                                    Text(
+                                      'Tente ajustar a busca ou o filtro selecionado.',
+                                      style: TextStyle(color: Color(0xFF6B7280)),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          )
-                        else
-                          _buildTable(filteredDocs),
-                      ],
+                              )
+                            else
+                              _buildTable(filteredDocs),
+                          ],
+                        );
+                      },
                     );
                   },
                 );

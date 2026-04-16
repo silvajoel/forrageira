@@ -20,11 +20,11 @@ class AdminSidebar extends StatelessWidget {
       child: ListView(
         children: [
           _item(Icons.home_outlined, 'Dashboard', 'dashboard'),
-          _item(Icons.hourglass_empty, 'Solicitacoes', 'pendentes'),
-          _item(Icons.inventory_2_outlined, 'Banco de Especies', 'banco'),
-          _item(Icons.history, 'Historico de Laudos', 'historico'),
-          _item(Icons.groups_outlined, 'Gestao de Usuarios', 'clientes'),
-          _item(Icons.settings_outlined, 'Configuracoes', 'config'),
+          _item(Icons.hourglass_empty, 'Solicitações', 'pendentes'),
+          _item(Icons.inventory_2_outlined, 'Banco de Espécies', 'banco'),
+          _item(Icons.history, 'Histórico de Laudos', 'historico'),
+          _item(Icons.groups_outlined, 'Gestão de Usuários', 'clientes'),
+          _item(Icons.settings_outlined, 'Configurações', 'config'),
           const Divider(color: Colors.white24),
           _logout(context),
         ],

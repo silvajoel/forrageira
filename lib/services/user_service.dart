@@ -16,7 +16,7 @@ class UserService {
       'email': email,
       'role': role,
       'active': true,
-      'createdAt': FieldValue.serverTimestamp(),
+      'created_at': FieldValue.serverTimestamp(),
     });
   }
 
@@ -123,7 +123,7 @@ class UserService {
       'email': email,
       'role': role,
       'active': active,
-      'createdAt': FieldValue.serverTimestamp(),
+      'created_at': FieldValue.serverTimestamp(),
     });
   }
 

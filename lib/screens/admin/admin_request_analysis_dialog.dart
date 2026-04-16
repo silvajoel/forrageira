@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:forrageira/services/app_notification_service.dart';
+import 'package:forrageira/services/audit_log_service.dart';
 import 'package:forrageira/widgets/image_viewer_dialog.dart';
 
 class AdminRequestAnalysisDialog extends StatefulWidget {
@@ -24,7 +25,10 @@ class _AdminRequestAnalysisDialogState
   final TextEditingController _obsManuseioCtrl = TextEditingController();
   final TextEditingController _newSpeciesNameCtrl = TextEditingController();
   final TextEditingController _newSpeciesNotesCtrl = TextEditingController();
+  static const String _reopenAllowedAdminEmail = 'suporte9@innomax.com.br';
+
   final _auth = FirebaseAuth.instance;
+  final _audit = AuditLogService();
 
   bool _saving = false;
   bool _creatingSpecies = false;
@@ -93,7 +97,7 @@ class _AdminRequestAnalysisDialogState
         _selectedSpeciesId = _existingSpeciesId(request);
 
         final existingCare =
-            (request['care_instructions'] ?? '').toString().trim();
+        (request['care_instructions'] ?? '').toString().trim();
         if (existingCare.isNotEmpty) {
           _careInstructionsCtrl.text = existingCare;
         }
@@ -116,9 +120,9 @@ class _AdminRequestAnalysisDialogState
             .toList();
         if (_resolvedImageUrls.isEmpty) {
           final singleUrl = (request['image_url'] ??
-                  request['photo_url'] ??
-                  request['image'] ??
-                  '')
+              request['photo_url'] ??
+              request['image'] ??
+              '')
               .toString();
           if (singleUrl.isNotEmpty) {
             _resolvedImageUrls.add(singleUrl);
@@ -164,6 +168,11 @@ class _AdminRequestAnalysisDialogState
   bool get _isCompleted {
     final status = (_request?['status'] ?? '').toString().trim().toLowerCase();
     return status == 'completed' || status == 'finalizado';
+  }
+
+  bool get _canCurrentAdminReopen {
+    final email = (_auth.currentUser?.email ?? '').trim().toLowerCase();
+    return _isCompleted && email == _reopenAllowedAdminEmail;
   }
 
   String _fmtDate(dynamic value) {
@@ -306,10 +315,10 @@ class _AdminRequestAnalysisDialogState
                   onPressed: _creatingSpecies ? null : submit,
                   child: _creatingSpecies
                       ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                       : const Text('Salvar'),
                 ),
               ],
@@ -339,7 +348,7 @@ class _AdminRequestAnalysisDialogState
         title: const Text('Confirmar finalização'),
         content: const Text(
           'Ao finalizar esta análise, uma notificação será enviada ao usuário '
-          'informando que o resultado está disponível. Deseja continuar?',
+              'informando que o resultado está disponível. Deseja continuar?',
         ),
         actions: [
           OutlinedButton(
@@ -420,6 +429,130 @@ class _AdminRequestAnalysisDialogState
     }
   }
 
+
+  Future<void> _confirmAndReopen() async {
+    if (!_canCurrentAdminReopen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Somente o admin autorizado pode reabrir uma análise concluída.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final reasonCtrl = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Reabrir análise'),
+        content: SizedBox(
+          width: 460,
+          child: TextField(
+            controller: reasonCtrl,
+            maxLines: 4,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Motivo da reabertura',
+              hintText: 'Ex.: fotos insuficientes, dados inconsistentes...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(reasonCtrl.text.trim()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFB45309),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Reabrir'),
+          ),
+        ],
+      ),
+    );
+
+    final cleanReason = (reason ?? '').trim();
+    if (cleanReason.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informe o motivo da reabertura.')),
+      );
+      return;
+    }
+
+    await _reopenAnalysis(cleanReason);
+  }
+
+  Future<void> _reopenAnalysis(String reason) async {
+    if (!_canCurrentAdminReopen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Somente o admin autorizado pode reabrir uma análise concluída.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final userId = (_request?['user_id'] ?? '').toString();
+      final forageName = (_request?['name'] ?? '').toString();
+      final currentUser = _auth.currentUser;
+
+      await _firestore.collection('analysis_requests').doc(widget.requestId).update({
+        'status': 'pending',
+        'reopen_reason': reason,
+        'reopened_at': FieldValue.serverTimestamp(),
+        'reopened_by_uid': currentUser?.uid,
+        'reopened_by_email': currentUser?.email,
+      });
+
+      await _audit.log(
+        action: 'analysis_reopened',
+        targetId: widget.requestId,
+        metadata: {
+          'reason': reason,
+          'user_id': userId,
+          'forage_name': forageName,
+          'reopened_by_email': currentUser?.email,
+        },
+      );
+
+      if (userId.isNotEmpty && forageName.isNotEmpty) {
+        try {
+          await AppNotificationService().notifyUserAnalysisReopened(
+            analysisId: widget.requestId,
+            userId: userId,
+            forageName: forageName,
+            reason: reason,
+          );
+        } catch (_) {}
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Análise reaberta e enviada novamente para pendentes.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao reabrir análise: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _openSelectedImagePreview() async {
     if (_resolvedImageUrls.isEmpty) return;
 
@@ -449,10 +582,10 @@ class _AdminRequestAnalysisDialogState
     final dialogWidth = screenWidth >= 1400
         ? 1120.0
         : screenWidth >= 1100
-            ? 980.0
-            : screenWidth >= 900
-                ? 860.0
-                : screenWidth * 0.96;
+        ? 980.0
+        : screenWidth >= 900
+        ? 860.0
+        : screenWidth * 0.96;
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -496,7 +629,7 @@ class _AdminRequestAnalysisDialogState
               if (_isCompleted)
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE8F5E9),
                     borderRadius: BorderRadius.circular(999),
@@ -512,7 +645,7 @@ class _AdminRequestAnalysisDialogState
               const SizedBox(width: 8),
               IconButton(
                 onPressed:
-                    _saving ? null : () => Navigator.of(context).pop(false),
+                _saving ? null : () => Navigator.of(context).pop(false),
                 icon: const Icon(Icons.close),
               ),
             ],
@@ -576,58 +709,58 @@ class _AdminRequestAnalysisDialogState
                                   Expanded(
                                     child: _speciesDocs.isEmpty
                                         ? const TextField(
-                                            readOnly: true,
-                                            decoration: InputDecoration(
-                                              labelText: 'Espécie identificada',
-                                              hintText:
-                                                  'Nenhuma espécie cadastrada',
-                                              border: OutlineInputBorder(),
-                                            ),
-                                          )
+                                      readOnly: true,
+                                      decoration: InputDecoration(
+                                        labelText: 'Espécie identificada',
+                                        hintText:
+                                        'Nenhuma espécie cadastrada',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    )
                                         : DropdownButtonFormField<String>(
-                                            initialValue:
-                                                _selectedSpeciesId != null &&
-                                                        _speciesDocs.any((d) =>
-                                                            d.id ==
-                                                            _selectedSpeciesId)
-                                                    ? _selectedSpeciesId
-                                                    : null,
-                                            isExpanded: true,
-                                            items: _speciesDocs.map((doc) {
-                                              final data = doc.data();
-                                              return DropdownMenuItem<String>(
-                                                value: doc.id,
-                                                child: Text(
-                                                    _speciesName(data, doc.id)),
-                                              );
-                                            }).toList(),
-                                            onChanged: (_saving || _isCompleted)
-                                                ? null
-                                                : (value) {
-                                                    if (value == null) return;
-                                                    setState(() =>
-                                                        _selectedSpeciesId =
-                                                            value);
-                                                    final sDoc =
-                                                        _findSpecies(value);
-                                                    if (sDoc != null) {
-                                                      final care =
-                                                          _speciesDescription(
-                                                              sDoc.data());
-                                                      if (care.isNotEmpty) {
-                                                        _careInstructionsCtrl
-                                                            .text = care;
-                                                      } else {
-                                                        _careInstructionsCtrl
-                                                            .clear();
-                                                      }
-                                                    }
-                                                  },
-                                            decoration: const InputDecoration(
-                                              labelText: 'Espécie identificada',
-                                              border: OutlineInputBorder(),
-                                            ),
-                                          ),
+                                      initialValue:
+                                      _selectedSpeciesId != null &&
+                                          _speciesDocs.any((d) =>
+                                          d.id ==
+                                              _selectedSpeciesId)
+                                          ? _selectedSpeciesId
+                                          : null,
+                                      isExpanded: true,
+                                      items: _speciesDocs.map((doc) {
+                                        final data = doc.data();
+                                        return DropdownMenuItem<String>(
+                                          value: doc.id,
+                                          child: Text(
+                                              _speciesName(data, doc.id)),
+                                        );
+                                      }).toList(),
+                                      onChanged: (_saving || _isCompleted)
+                                          ? null
+                                          : (value) {
+                                        if (value == null) return;
+                                        setState(() =>
+                                        _selectedSpeciesId =
+                                            value);
+                                        final sDoc =
+                                        _findSpecies(value);
+                                        if (sDoc != null) {
+                                          final care =
+                                          _speciesDescription(
+                                              sDoc.data());
+                                          if (care.isNotEmpty) {
+                                            _careInstructionsCtrl
+                                                .text = care;
+                                          } else {
+                                            _careInstructionsCtrl
+                                                .clear();
+                                          }
+                                        }
+                                      },
+                                      decoration: const InputDecoration(
+                                        labelText: 'Espécie identificada',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
                                   ),
                                   const SizedBox(width: 12),
                                   SizedBox(
@@ -651,7 +784,7 @@ class _AdminRequestAnalysisDialogState
                                   labelText: 'Cuidados recomendados',
                                   border: OutlineInputBorder(),
                                   helperText:
-                                      'Descrição da espécie. Edite se necessário.',
+                                  'Descrição da espécie. Edite se necessário.',
                                 ),
                               ),
                               const SizedBox(height: 12),
@@ -705,35 +838,58 @@ class _AdminRequestAnalysisDialogState
           ),
           child: Row(
             children: [
-              Text(
-                _isCompleted
-                    ? 'Solicitação bloqueada para reanálise.'
-                    : 'Depois de finalizar, a análise não poderá ser alterada.',
-                style: const TextStyle(color: Colors.black54),
-              ),
-              const Spacer(),
-              OutlinedButton(
-                onPressed:
-                    _saving ? null : () => Navigator.of(context).pop(false),
-                child: const Text('Fechar'),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed:
-                    (_saving || _isCompleted) ? null : _confirmAndFinalize,
-                icon: _saving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.check_circle_outline),
-                label: const Text('Finalizar análise'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1F5B3F),
-                  foregroundColor: Colors.white,
+              Expanded(
+                child: Text(
+                  _isCompleted
+                      ? (_canCurrentAdminReopen
+                      ? 'Esta análise já foi concluída. O admin autorizado pode reabri-la.'
+                      : 'Esta análise já foi concluída e não pode ser reaberta por este usuário.')
+                      : 'Depois de finalizar, a análise não poderá ser alterada.',
+                  style: const TextStyle(color: Colors.black54),
                 ),
               ),
+              const SizedBox(width: 12),
+              OutlinedButton(
+                onPressed:
+                _saving ? null : () => Navigator.of(context).pop(false),
+                child: const Text('Fechar'),
+              ),
+              if (_canCurrentAdminReopen) ...[
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: _saving ? null : _confirmAndReopen,
+                  icon: _saving
+                      ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                      : const Icon(Icons.restart_alt),
+                  label: const Text('Reabrir análise'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFB45309),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+              if (!_isCompleted) ...[
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: _saving ? null : _confirmAndFinalize,
+                  icon: _saving
+                      ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                      : const Icon(Icons.check_circle_outline),
+                  label: const Text('Finalizar análise'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1F5B3F),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -793,58 +949,58 @@ class _AdminRequestAnalysisDialogState
             ),
             child: _resolvedImageUrls.isEmpty || _allImagesFailed
                 ? const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.image_not_supported_outlined,
-                            size: 48, color: Colors.grey),
-                        SizedBox(height: 8),
-                        Text(
-                          'Imagem não disponível',
-                          style: TextStyle(
-                              color: Colors.grey, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  )
-                : GestureDetector(
-                    onTap: _openSelectedImagePreview,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.network(
-                        _resolvedImageUrls[_mainImageIndex.clamp(
-                            0, _resolvedImageUrls.length - 1)],
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.contain,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.broken_image,
-                                    size: 40, color: Colors.grey),
-                                SizedBox(height: 6),
-                                Text('Erro ao carregar imagem',
-                                    style: TextStyle(color: Colors.grey)),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.image_not_supported_outlined,
+                      size: 48, color: Colors.grey),
+                  SizedBox(height: 8),
+                  Text(
+                    'Imagem não disponível',
+                    style: TextStyle(
+                        color: Colors.grey, fontWeight: FontWeight.w600),
                   ),
+                ],
+              ),
+            )
+                : GestureDetector(
+              onTap: _openSelectedImagePreview,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  _resolvedImageUrls[_mainImageIndex.clamp(
+                      0, _resolvedImageUrls.length - 1)],
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.broken_image,
+                              size: 40, color: Colors.grey),
+                          SizedBox(height: 6),
+                          Text('Erro ao carregar imagem',
+                              style: TextStyle(color: Colors.grey)),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
 
           // ── Miniaturas ───────────────────────────────────────

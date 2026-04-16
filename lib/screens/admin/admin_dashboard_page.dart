@@ -10,7 +10,14 @@ import 'package:latlong2/latlong.dart';
 import '../../models/analysis_request.dart';
 
 class AdminDashboardPage extends StatelessWidget {
-  const AdminDashboardPage({super.key});
+  final ValueChanged<String>? onOpenRequests;
+  final ValueChanged<String>? onOpenClients;
+
+  const AdminDashboardPage({
+    super.key,
+    this.onOpenRequests,
+    this.onOpenClients,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -73,24 +80,28 @@ class AdminDashboardPage extends StatelessWidget {
                       title: 'Total de análises',
                       value: '${vm.totalAnalyses}',
                       subtitle: 'Solicitações registradas no sistema',
+                      onTap: () => onOpenRequests?.call('todos'),
                     ),
                     _KpiCard(
                       icon: Icons.pending_actions_outlined,
-                      title: 'Pendentes',
+                      title: 'Solicitações pendentes',
                       value: '${vm.pendingCount}',
                       subtitle: 'Aguardando avaliação',
+                      onTap: () => onOpenRequests?.call('pending'),
                     ),
                     _KpiCard(
                       icon: Icons.task_alt_outlined,
                       title: 'Concluídas',
                       value: '${vm.completedCount}',
                       subtitle: 'Já avaliadas/finalizadas',
+                      onTap: () => onOpenRequests?.call('completed'),
                     ),
                     _KpiCard(
                       icon: Icons.people_alt_outlined,
                       title: 'Usuários ativos',
                       value: '${vm.activeUsersCount}',
                       subtitle: 'Cadastros ativos na base',
+                      onTap: () => onOpenClients?.call('ativos'),
                     ),
                   ],
                 ),
@@ -255,7 +266,6 @@ class _DashboardViewModel {
 
     final analysesByStatus = <String, int>{
       'Pendentes': 0,
-      'Em análise': 0,
       'Concluídas': 0,
     };
 
@@ -264,9 +274,6 @@ class _DashboardViewModel {
       if (normalized == 'completed') {
         analysesByStatus['Concluídas'] =
             (analysesByStatus['Concluídas'] ?? 0) + 1;
-      } else if (normalized == 'in_progress') {
-        analysesByStatus['Em análise'] =
-            (analysesByStatus['Em análise'] ?? 0) + 1;
       } else {
         analysesByStatus['Pendentes'] =
             (analysesByStatus['Pendentes'] ?? 0) + 1;
@@ -397,53 +404,62 @@ class _KpiCard extends StatelessWidget {
   final String title;
   final String value;
   final String subtitle;
+  final VoidCallback? onTap;
 
   const _KpiCard({
     required this.icon,
     required this.title,
     required this.value,
     required this.subtitle,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 260,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x14000000),
-              blurRadius: 14,
-              offset: Offset(0, 6),
+          child: Ink(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x14000000),
+                  blurRadius: 14,
+                  offset: Offset(0, 6),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1F5B3F).withOpacity(0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: const Color(0xFF1F5B3F)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1F5B3F).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: const Color(0xFF1F5B3F)),
+                ),
+                const SizedBox(height: 14),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Text(
+                  value,
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 6),
+                Text(subtitle, style: TextStyle(color: Colors.grey.shade700)),
+              ],
             ),
-            const SizedBox(height: 14),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 6),
-            Text(subtitle, style: TextStyle(color: Colors.grey.shade700)),
-          ],
+          ),
         ),
       ),
     );
@@ -659,7 +675,7 @@ class _AnalysisByStatusCard extends StatelessWidget {
 
     return _DashboardCard(
       title: 'Análises por status',
-      subtitle: 'Ajuda a enxergar o volume pendente versus processado',
+      subtitle: 'Ajuda a enxergar o volume pendente versus concluído',
       height: 320,
       child: items.isEmpty
           ? const _EmptyChart(message: 'Ainda não há dados de status para exibir.')
@@ -720,7 +736,6 @@ class _AnalysisByStatusCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                     color: switch (items[i].key) {
                       'Concluídas' => const Color(0xFF2563EB),
-                      'Em análise' => const Color(0xFFF59E0B),
                       _ => const Color(0xFFDC2626),
                     },
                   ),
