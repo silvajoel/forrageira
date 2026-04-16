@@ -22,6 +22,8 @@ class AdminHomePage extends StatefulWidget {
 
 class _AdminHomePageState extends State<AdminHomePage> {
   late String _selectedMenu;
+  String _requestsStatusFilter = 'todos';
+  String _clientsStatusFilter = 'todos';
 
   @override
   void initState() {
@@ -33,6 +35,20 @@ class _AdminHomePageState extends State<AdminHomePage> {
     final normalized = _normalizeMenu(menu);
     if (_selectedMenu == normalized) return;
     setState(() => _selectedMenu = normalized);
+  }
+
+  void _openRequests(String statusFilter) {
+    setState(() {
+      _selectedMenu = 'pendentes';
+      _requestsStatusFilter = statusFilter;
+    });
+  }
+
+  void _openClients(String statusFilter) {
+    setState(() {
+      _selectedMenu = 'clientes';
+      _clientsStatusFilter = statusFilter;
+    });
   }
 
   String _normalizeMenu(String value) {
@@ -57,13 +73,26 @@ class _AdminHomePageState extends State<AdminHomePage> {
       onOpenSettings: () => _handleMenuSelected('config'),
       child: IndexedStack(
         index: _menuIndex(_selectedMenu),
-        children: const [
-          AdminDashboardPage(),
-          AdminRequestsPage(),
-          AdminSpeciesPage(),
-          AdminHistoryPage(),
-          AdminClientsPage(),
-          AdminSettingsPage(),
+        children: [
+          AdminDashboardPage(
+            onOpenRequests: _openRequests,
+            onOpenClients: _openClients,
+          ),
+          AdminRequestsPage(
+            initialStatusFilter: _requestsStatusFilter,
+            onStatusFilterChanged: (value) {
+              _requestsStatusFilter = value;
+            },
+          ),
+          const AdminSpeciesPage(),
+          const AdminHistoryPage(),
+          AdminClientsPage(
+            initialStatusFilter: _clientsStatusFilter,
+            onStatusFilterChanged: (value) {
+              _clientsStatusFilter = value;
+            },
+          ),
+          const AdminSettingsPage(),
         ],
       ),
     );

@@ -58,6 +58,27 @@ class AppNotificationService {
     });
   }
 
+
+  Future<void> notifyUserAnalysisReopened({
+    required String analysisId,
+    required String userId,
+    required String forageName,
+    required String reason,
+  }) async {
+    final cleanReason = reason.trim();
+    await _firestore.collection('app_notifications').add({
+      'title': 'Análise reaberta para ajustes',
+      'message': cleanReason.isEmpty
+          ? 'A análise da forrageira "$forageName" foi reaberta para ajustes.'
+          : 'A análise da forrageira "$forageName" foi reaberta para ajustes. Motivo: $cleanReason',
+      'recipient_type': 'user',
+      'recipient_id': userId,
+      'analysis_id': analysisId,
+      'read': false,
+      'created_at': FieldValue.serverTimestamp(),
+    });
+  }
+
   Stream<List<AppNotification>> watchUserNotifications({
     required String userId,
     int limit = 50,

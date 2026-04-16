@@ -4,7 +4,14 @@ import 'package:flutter/material.dart';
 import 'admin_request_analysis_dialog.dart';
 
 class AdminRequestsPage extends StatefulWidget {
-  const AdminRequestsPage({super.key});
+  final String initialStatusFilter;
+  final ValueChanged<String>? onStatusFilterChanged;
+
+  const AdminRequestsPage({
+    super.key,
+    this.initialStatusFilter = 'todos',
+    this.onStatusFilterChanged,
+  });
 
   @override
   State<AdminRequestsPage> createState() => _AdminRequestsPageState();
@@ -15,10 +22,44 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
   final TextEditingController _searchCtrl = TextEditingController();
   final Map<String, String> _userNameCache = {};
 
+  late String _statusFilter;
+
+  @override
+  void initState() {
+    super.initState();
+    _statusFilter = _normalizeFilter(widget.initialStatusFilter);
+  }
+
+  @override
+  void didUpdateWidget(covariant AdminRequestsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextFilter = _normalizeFilter(widget.initialStatusFilter);
+    if (nextFilter != _statusFilter) {
+      setState(() => _statusFilter = nextFilter);
+    }
+  }
+
   @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  String _normalizeFilter(String raw) {
+    switch (raw.trim().toLowerCase()) {
+      case 'pending':
+      case 'pendente':
+      case 'pendentes':
+        return 'pending';
+      case 'completed':
+      case 'concluida':
+      case 'concluídas':
+      case 'concluidas':
+      case 'finalizado':
+        return 'completed';
+      default:
+        return 'todos';
+    }
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _requestsStream() {
@@ -56,7 +97,7 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
   String _statusLabel(String raw) {
     switch (_normalizeStatus(raw)) {
       case 'completed':
-        return 'Finalizado';
+        return 'Concluída';
       default:
         return 'Pendente';
     }
@@ -97,19 +138,37 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
     }
   }
 
+  void _changeStatusFilter(String value) {
+    setState(() => _statusFilter = value);
+    widget.onStatusFilterChanged?.call(value);
+  }
+
+  String _filterLabel(String value) {
+    switch (value) {
+      case 'pending':
+        return 'Pendentes';
+      case 'completed':
+        return 'Concluídas';
+      default:
+        return 'Todas';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
       children: [
         const Text(
-          'Solicitacoes',
+          'Solicitações',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 12),
         _searchBar(),
         const SizedBox(height: 12),
+        _statusFilters(),
+        const SizedBox(height: 12),
         _card(
-          title: 'Lista de solicitacoes',
+          title: 'Lista de solicitações',
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: _usersStream(),
             builder: (context, usersSnapshot) {
@@ -128,7 +187,7 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                     return Padding(
                       padding: const EdgeInsets.all(20),
                       child: Text(
-                        'Erro ao carregar solicitacoes: ${snapshot.error}',
+                        'Erro ao carregar solicitações: ${snapshot.error}',
                       ),
                     );
                   }
@@ -148,11 +207,11 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                     final id = doc.id.toLowerCase();
                     final name = (data['name'] ?? '').toString().toLowerCase();
                     final notes =
-                        (data['notes'] ?? '').toString().toLowerCase();
+                    (data['notes'] ?? '').toString().toLowerCase();
                     final userId =
-                        (data['user_id'] ?? '').toString().toLowerCase();
+                    (data['user_id'] ?? '').toString().toLowerCase();
                     final userName =
-                        (_userNameCache[data['user_id']] ?? '').toLowerCase();
+                    (_userNameCache[data['user_id']] ?? '').toLowerCase();
                     final status = _normalizeStatus(
                       (data['status'] ?? '').toString(),
                     );
@@ -160,6 +219,9 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                     final visible =
                         status == 'pending' || status == 'completed';
                     if (!visible) return false;
+
+                    final matchStatus = _statusFilter == 'todos' || status == _statusFilter;
+                    if (!matchStatus) return false;
                     if (q.isEmpty) return true;
 
                     return id.contains(q) ||
@@ -179,9 +241,11 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                     });
 
                   if (filteredDocs.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Text('Nenhuma solicitacao encontrada.'),
+                    return Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text(
+                        'Nenhuma solicitação encontrada para o filtro ${_filterLabel(_statusFilter).toLowerCase()}.',
+                      ),
                     );
                   }
 
@@ -191,8 +255,8 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                       columns: const [
                         DataColumn(label: Text('Data')),
                         DataColumn(label: Text('Status')),
-                        DataColumn(label: Text('Usuario')),
-                        DataColumn(label: Text('Acoes')),
+                        DataColumn(label: Text('Usuário')),
+                        DataColumn(label: Text('Ações')),
                       ],
                       rows: filteredDocs.map((doc) {
                         final data = doc.data();
@@ -247,6 +311,27 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
     );
   }
 
+  Widget _statusFilters() {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        _filterChip('Todas', 'todos'),
+        _filterChip('Pendentes', 'pending'),
+        _filterChip('Concluídas', 'completed'),
+      ],
+    );
+  }
+
+  Widget _filterChip(String label, String value) {
+    final selected = _statusFilter == value;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => _changeStatusFilter(value),
+    );
+  }
+
   Widget _searchBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -266,7 +351,7 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
         onChanged: (_) => setState(() {}),
         decoration: const InputDecoration(
           border: InputBorder.none,
-          hintText: 'Buscar por nome, usuario, observacoes ou id...',
+          hintText: 'Buscar por nome, usuário, observações ou id...',
           prefixIcon: Icon(Icons.search),
         ),
       ),
