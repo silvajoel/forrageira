@@ -7,7 +7,7 @@ class PleskImageStorageService implements IImageStorageService {
   final String uploadUrl;
 
   const PleskImageStorageService({
-    this.uploadUrl = 'https://cadastro.mgconecta.com.br/img_teste/index.php',
+    this.uploadUrl = 'https://api.devjoelchagas.com.br/index.php',
   });
 
   @override

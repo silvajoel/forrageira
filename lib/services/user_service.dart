@@ -64,10 +64,33 @@ class UserService {
     await _db.collection('users').doc(uid).update({'email': newEmail});
   }
 
-  Future<Map<String, dynamic>?> getProfile(String uid) async {
-    final doc = await _db.collection('users').doc(uid).get();
+  Future<Map<String, dynamic>?> getProfile(
+    String uid, {
+    Source source = Source.serverAndCache,
+  }) async {
+    final doc = await _db.collection('users').doc(uid).get(
+          GetOptions(source: source),
+        );
     if (!doc.exists) return null;
     return doc.data();
+  }
+
+  Future<Map<String, dynamic>?> getProfileWithRetry(String uid) async {
+    final firstProfile = await getProfile(uid);
+
+    if (firstProfile == null || !isProfileActive(firstProfile)) {
+      await Future.delayed(const Duration(milliseconds: 700));
+      try {
+        final refreshedProfile = await getProfile(uid, source: Source.server);
+        if (refreshedProfile != null) {
+          return refreshedProfile;
+        }
+      } catch (_) {
+        return firstProfile;
+      }
+    }
+
+    return firstProfile;
   }
 
   /// Só inativa quando [active] é explicitamente `false` (documentos sem o campo contam como ativos).

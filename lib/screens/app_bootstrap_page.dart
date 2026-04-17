@@ -14,7 +14,7 @@ class AppBootstrapPage extends StatelessWidget {
 
   Future<Map<String, dynamic>?> _loadProfile(String uid) async {
     try {
-      return await UserService().getProfile(uid).timeout(
+      return await UserService().getProfileWithRetry(uid).timeout(
             const Duration(seconds: 6),
           );
     } catch (_) {

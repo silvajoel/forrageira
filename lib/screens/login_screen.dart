@@ -32,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception("Falha no login.");
       }
 
-      final profile = await _userService.getProfile(user.uid);
+      final profile = await _userService.getProfileWithRetry(user.uid);
 
       if (!mounted) return;
 

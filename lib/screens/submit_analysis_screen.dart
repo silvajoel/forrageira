@@ -44,6 +44,10 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
 
   String? get _userId => FirebaseAuth.instance.currentUser?.uid;
   int get _remainingImages => _maxImages - _selectedImages.length;
+  String get _resolvedForageName {
+    final value = _nameController.text.trim();
+    return value.isEmpty ? 'Sem nome informado' : value;
+  }
 
   @override
   void initState() {
@@ -155,7 +159,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
         );
 
         await forageService.createAnalysisRequest(
-          name: _nameController.text.trim(),
+          name: _resolvedForageName,
           notes: _notesController.text.trim(),
           latitude: location.latitude,
           longitude: location.longitude,
@@ -166,7 +170,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
         _showSnack('Forrageira enviada com sucesso!');
       } catch (_) {
         await queueService.enqueue(
-          name: _nameController.text.trim(),
+          name: _resolvedForageName,
           notes: _notesController.text.trim(),
           userId: uid,
           latitude: location.latitude,
@@ -217,9 +221,54 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 14,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed:
+                      _isUploading || isCaptureComplete ? null : _takePhoto,
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  label: Text(
+                    isCaptureComplete
+                        ? '5 fotos conclu\u00eddas'
+                        : 'Tirar foto ($captured/$_maxImages)',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _isUploading ? null : _submitForm,
+                  child: _isUploading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.4),
+                        )
+                      : const Text('Enviar'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
           child: Form(
             key: _formKey,
             child: Column(
@@ -239,10 +288,9 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
                 const SizedBox(height: 24),
                 AppTextField(
                   controller: _nameController,
-                  label: 'Nome da forrageira',
+                  label:
+                      'Voc\u00ea conhece essa forrageira por algum nome?',
                   icon: Icons.grass,
-                  validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Informe o nome' : null,
                 ),
                 const SizedBox(height: 16),
                 AppTextField(
@@ -269,42 +317,15 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
                   _buildFirstSubmissionTutorial(theme),
                   const SizedBox(height: 16),
                 ],
-                _buildPhotoChecklist(theme),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed:
-                        _isUploading || isCaptureComplete ? null : _takePhoto,
-                    icon: const Icon(Icons.camera_alt_outlined),
-                    label: Text(
-                      isCaptureComplete
-                          ? '5 fotos conclu\u00eddas'
-                          : 'Tirar foto ($captured/$_maxImages)',
-                    ),
-                  ),
-                ),
                 const SizedBox(height: 10),
                 Text(
                   'Toque em uma foto para ampliar. Use o X para remover e refazer.',
                   style: theme.textTheme.bodySmall,
                 ),
                 const SizedBox(height: 16),
+                _buildPhotoChecklist(theme),
+                const SizedBox(height: 16),
                 if (_selectedImages.isNotEmpty) _buildImageGrid(),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isUploading ? null : _submitForm,
-                    child: _isUploading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2.4),
-                          )
-                        : const Text('Enviar'),
-                  ),
-                ),
                 const SizedBox(height: 40),
               ],
             ),
@@ -351,7 +372,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
           Text(
             captured == _maxImages
                 ? 'Todas as fotos foram capturadas.'
-                : 'Faltam $_remainingImages foto(s) para concluir o envio.',
+                : 'Voc\u00ea precisa tirar $_maxImages foto(s). J\u00e1 tirou $captured de $_maxImages.',
           ),
           const SizedBox(height: 12),
           ClipRRect(
