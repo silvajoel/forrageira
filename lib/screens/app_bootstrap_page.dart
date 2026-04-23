@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import 'admin/admin_home_page.dart';
 import 'admin/admin_login_page.dart';
@@ -9,8 +10,21 @@ import 'login_screen.dart';
 import 'main_screen.dart';
 import '../services/navigation_service.dart';
 
-class AppBootstrapPage extends StatelessWidget {
+class AppBootstrapPage extends StatefulWidget {
   const AppBootstrapPage({super.key});
+
+  @override
+  State<AppBootstrapPage> createState() => _AppBootstrapPageState();
+}
+
+class _AppBootstrapPageState extends State<AppBootstrapPage> {
+  late final Future<bool> _lastKnownSessionFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastKnownSessionFuture = AuthService.getLastKnownAuthenticatedUser();
+  }
 
   Future<Map<String, dynamic>?> _loadProfile(String uid) async {
     try {
@@ -24,81 +38,105 @@ class AppBootstrapPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, authSnapshot) {
-        if (authSnapshot.connectionState == ConnectionState.waiting) {
-          return const _BootstrapScaffold();
-        }
+    final cachedUser = FirebaseAuth.instance.currentUser;
 
-        final user = authSnapshot.data;
+    return FutureBuilder<bool>(
+      future: _lastKnownSessionFuture,
+      builder: (context, sessionSnapshot) {
+        final hadKnownSession = sessionSnapshot.data ?? false;
 
-        if (user == null) {
-          return kIsWeb ? const AdminLoginPage() : const LoginScreen();
-        }
+        return StreamBuilder<User?>(
+          initialData: cachedUser,
+          stream: FirebaseAuth.instance.authStateChanges(),
+          builder: (context, authSnapshot) {
+            final user = authSnapshot.data ?? cachedUser;
+            final canOpenOffline = !kIsWeb && (user != null || hadKnownSession);
 
-        return FutureBuilder<Map<String, dynamic>?>(
-          future: _loadProfile(user.uid),
-          builder: (context, profileSnapshot) {
-            if (profileSnapshot.connectionState == ConnectionState.waiting) {
+            if (authSnapshot.connectionState == ConnectionState.waiting &&
+                !canOpenOffline) {
               return const _BootstrapScaffold();
             }
 
-            final profile = profileSnapshot.data;
-
-            if (!kIsWeb && profile == null) {
-              // Permite uso offline do app mobile para usuarios ja autenticados.
+            if (user == null && hadKnownSession && !kIsWeb) {
               return MainScreen(key: mainScreenKey);
             }
 
-            if (profile == null) {
-              return _AccessDeniedPage(
-                title: 'Perfil n\u00e3o encontrado',
-                message:
-                    'Sua conta foi autenticada, mas o cadastro correspondente n\u00e3o foi localizado no banco.',
-                actionLabel: 'Sair',
-                onAction: () => FirebaseAuth.instance.signOut(),
-              );
+            if (user == null) {
+              return kIsWeb ? const AdminLoginPage() : const LoginScreen();
             }
 
-            final role = (profile['role'] ?? '').toString().toLowerCase();
-            final isActive = profile['active'] == true;
-
-            if (!isActive) {
-              return _AccessDeniedPage(
-                title: 'Conta inativa',
-                message:
-                    'Seu acesso est\u00e1 desativado no momento. Procure o administrador do sistema.',
-                actionLabel: 'Sair',
-                onAction: () => FirebaseAuth.instance.signOut(),
-              );
+            if (!kIsWeb &&
+                authSnapshot.connectionState == ConnectionState.waiting) {
+              return MainScreen(key: mainScreenKey);
             }
 
-            if (kIsWeb) {
-              if (role == 'admin') {
-                return const AdminHomePage();
-              }
+            return FutureBuilder<Map<String, dynamic>?>(
+              future: _loadProfile(user.uid),
+              builder: (context, profileSnapshot) {
+                if (profileSnapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  if (!kIsWeb) {
+                    return MainScreen(key: mainScreenKey);
+                  }
+                  return const _BootstrapScaffold();
+                }
 
-              return _AccessDeniedPage(
-                title: 'Acesso restrito',
-                message:
-                    'O painel web \u00e9 destinado apenas a administradores. Entre com uma conta admin ou use o app do usu\u00e1rio.',
-                actionLabel: 'Sair',
-                onAction: () => FirebaseAuth.instance.signOut(),
-              );
-            }
+                final profile = profileSnapshot.data;
 
-            if (role == 'admin') {
-              return _AccessDeniedPage(
-                title: 'Conta administrativa',
-                message:
-                    'Essa conta \u00e9 administrativa e deve acessar o painel web, n\u00e3o o aplicativo mobile.',
-                actionLabel: 'Sair',
-                onAction: () => FirebaseAuth.instance.signOut(),
-              );
-            }
+                if (!kIsWeb && profile == null) {
+                  return MainScreen(key: mainScreenKey);
+                }
 
-            return MainScreen(key: mainScreenKey);
+                if (profile == null) {
+                  return _AccessDeniedPage(
+                    title: 'Perfil n\u00e3o encontrado',
+                    message:
+                        'Sua conta foi autenticada, mas o cadastro correspondente n\u00e3o foi localizado no banco.',
+                    actionLabel: 'Sair',
+                    onAction: () => FirebaseAuth.instance.signOut(),
+                  );
+                }
+
+                final role = UserService.roleValue(profile) ?? '';
+                final isActive = UserService.isProfileActive(profile);
+
+                if (!isActive) {
+                  return _AccessDeniedPage(
+                    title: 'Conta inativa',
+                    message:
+                        'Seu acesso est\u00e1 desativado no momento. Procure o administrador do sistema.',
+                    actionLabel: 'Sair',
+                    onAction: () => FirebaseAuth.instance.signOut(),
+                  );
+                }
+
+                if (kIsWeb) {
+                  if (role == 'admin') {
+                    return const AdminHomePage();
+                  }
+
+                  return _AccessDeniedPage(
+                    title: 'Acesso restrito',
+                    message:
+                        'O painel web \u00e9 destinado apenas a administradores. Entre com uma conta admin ou use o app do usu\u00e1rio.',
+                    actionLabel: 'Sair',
+                    onAction: () => FirebaseAuth.instance.signOut(),
+                  );
+                }
+
+                if (role == 'admin') {
+                  return _AccessDeniedPage(
+                    title: 'Conta administrativa',
+                    message:
+                        'Essa conta \u00e9 administrativa e deve acessar o painel web, n\u00e3o o aplicativo mobile.',
+                    actionLabel: 'Sair',
+                    onAction: () => FirebaseAuth.instance.signOut(),
+                  );
+                }
+
+                return MainScreen(key: mainScreenKey);
+              },
+            );
           },
         );
       },

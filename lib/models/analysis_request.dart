@@ -1,6 +1,7 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/image_url_resolver.dart';
 
 part 'analysis_request.freezed.dart';
 part 'analysis_request.g.dart';
@@ -39,7 +40,9 @@ extension AnalysisRequestFirestore on AnalysisRequest {
       latitude: (data['latitude'] ?? 0).toDouble(),
       longitude: (data['longitude'] ?? 0).toDouble(),
       status: data['status'] ?? 'pending',
-      imageUrls: List<String>.from(data['images'] ?? []),
+      imageUrls: List<String>.from(data['images'] ?? [])
+          .map(ImageUrlResolver.resolve)
+          .toList(),
       createdAt: (data['created_at'] as Timestamp?)?.toDate(),
       speciesName: data['species_name'],
       careInstructions: data['care_instructions'],

@@ -1,7 +1,23 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'i_image_storage_service.dart';
+
+class ImageUploadException implements Exception {
+  final String message;
+  final bool isRetryable;
+  final int? statusCode;
+
+  const ImageUploadException(
+    this.message, {
+    this.isRetryable = false,
+    this.statusCode,
+  });
+
+  @override
+  String toString() => message;
+}
 
 class PleskImageStorageService implements IImageStorageService {
   final String uploadUrl;
@@ -34,20 +50,55 @@ class PleskImageStorageService implements IImageStorageService {
         await http.MultipartFile.fromPath('image', image.path),
       );
 
-      final streamed  = await request.send();
-      final response  = await http.Response.fromStream(streamed);
+      http.StreamedResponse streamed;
+      http.Response response;
 
-      if (response.statusCode != 200) {
-        throw Exception(
-          'Erro HTTP ${response.statusCode} ao fazer upload da imagem.',
+      try {
+        streamed = await request.send().timeout(const Duration(seconds: 30));
+        response = await http.Response.fromStream(streamed)
+            .timeout(const Duration(seconds: 30));
+      } on SocketException {
+        throw const ImageUploadException(
+          'Falha de conexao ao enviar a imagem. Verifique sua internet.',
+          isRetryable: true,
+        );
+      } on HttpException {
+        throw const ImageUploadException(
+          'Falha de comunicacao com o servidor de imagens.',
+          isRetryable: true,
+        );
+      } on TimeoutException {
+        throw const ImageUploadException(
+          'O servidor demorou demais para responder ao upload da imagem.',
+          isRetryable: true,
         );
       }
 
-      final Map<String, dynamic> data = jsonDecode(response.body);
+      if (response.statusCode != 200) {
+        final serverMessage = _extractMessage(response.body);
+        throw ImageUploadException(
+          serverMessage ??
+              'Erro HTTP ${response.statusCode} ao fazer upload da imagem.',
+          isRetryable: response.statusCode >= 500,
+          statusCode: response.statusCode,
+        );
+      }
+
+      late final Map<String, dynamic> data;
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } on FormatException {
+        throw const ImageUploadException(
+          'A API de upload retornou uma resposta invalida.',
+          isRetryable: true,
+        );
+      }
 
       if (data['status'] != 'success') {
-        throw Exception(
-          data['message'] ?? 'Erro desconhecido no upload da imagem.',
+        throw ImageUploadException(
+          (data['message'] as String?) ??
+              'Erro desconhecido no upload da imagem.',
+          isRetryable: false,
         );
       }
 
@@ -55,5 +106,23 @@ class PleskImageStorageService implements IImageStorageService {
     }
 
     return urls;
+  }
+
+  String? _extractMessage(String body) {
+    if (body.trim().isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final message = decoded['message'];
+        if (message is String && message.trim().isNotEmpty) {
+          return message;
+        }
+      }
+    } on FormatException {
+      return null;
+    }
+
+    return null;
   }
 }

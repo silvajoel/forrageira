@@ -4,12 +4,13 @@ import 'package:forrageira/models/analysis_request.dart';
 import 'package:forrageira/screens/main_screen.dart';
 import 'package:forrageira/services/i_forage_service.dart';
 import 'package:forrageira/services/pending_analysis_queue_service.dart';
+import 'package:forrageira/widgets/notification_bell_button.dart';
 import 'package:provider/provider.dart';
 
 import '../widgets/analysis_item.dart';
 
 class AnalysisScreen extends StatelessWidget {
-  const AnalysisScreen({Key? key}) : super(key: key);
+  const AnalysisScreen({super.key});
 
   String _statusLabel(String status) {
     switch (status) {
@@ -45,7 +46,7 @@ class AnalysisScreen extends StatelessWidget {
         latitude: item.latitude,
         longitude: item.longitude,
         status: 'queued_offline',
-        imageUrls: const [],
+        imageUrls: item.imagePaths,
         createdAt: item.createdAt,
       );
     }).toList();
@@ -68,11 +69,8 @@ class AnalysisScreen extends StatelessWidget {
             Text('Minhas an\u00e1lises'),
           ],
         ),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Icon(Icons.person_outline),
-          ),
+        actions: [
+          if (userId.isNotEmpty) NotificationBellButton(userId: userId),
         ],
       ),
       body: SafeArea(
@@ -148,14 +146,11 @@ class AnalysisScreen extends StatelessWidget {
                             coverImageUrl: item.imageUrls.isNotEmpty
                                 ? item.imageUrls.first
                                 : null,
-                            onTap: item.status == 'queued_offline'
-                                ? null
-                                : () {
-                                    final mainScreen =
-                                        context.findAncestorStateOfType<
-                                            MainScreenState>();
-                                    mainScreen?.openAnalysisDetail(item);
-                                  },
+                            onTap: () {
+                              final mainScreen = context
+                                  .findAncestorStateOfType<MainScreenState>();
+                              mainScreen?.openAnalysisDetail(item);
+                            },
                           ),
                         );
                       },

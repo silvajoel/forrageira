@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import 'app_smart_image.dart';
 import 'rounded_card.dart';
 
 class AnalysisItem extends StatelessWidget {
@@ -92,8 +93,8 @@ class AnalysisItem extends StatelessWidget {
         width: 64,
         height: 64,
         child: hasUrl
-            ? Image.network(
-                coverImageUrl!,
+            ? AppSmartImage(
+                source: coverImageUrl!,
                 width: 64,
                 height: 64,
                 fit: BoxFit.cover,

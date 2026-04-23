@@ -9,19 +9,22 @@ import 'package:provider/provider.dart';
 import '../services/i_forage_service.dart';
 import '../services/i_image_storage_service.dart';
 import '../services/i_location_service.dart';
+import '../services/navigation_service.dart';
 import '../services/pending_analysis_queue_service.dart';
+import '../services/plesk_image_storage_service.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/image_viewer_dialog.dart';
+import '../widgets/notification_bell_button.dart';
 
 class SubmitAnalysisScreen extends StatefulWidget {
   final ILocationService locationService;
   final IImageStorageService imageStorageService;
 
   const SubmitAnalysisScreen({
-    Key? key,
+    super.key,
     required this.locationService,
     required this.imageStorageService,
-  }) : super(key: key);
+  });
 
   @override
   State<SubmitAnalysisScreen> createState() => _SubmitAnalysisScreenState();
@@ -30,6 +33,8 @@ class SubmitAnalysisScreen extends StatefulWidget {
 class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
   static const int _minImages = 5;
   static const int _maxImages = 5;
+  static const int _maxUploadBytes = 5 * 1024 * 1024;
+  static const double _bottomActionBarHeight = 96;
 
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -101,10 +106,25 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
       return;
     }
 
-    final photo = await _picker.pickImage(source: ImageSource.camera);
+    final photo = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 82,
+      maxWidth: 1800,
+      maxHeight: 1800,
+      preferredCameraDevice: CameraDevice.rear,
+    );
     if (photo == null) return;
 
-    setState(() => _selectedImages.add(File(photo.path)));
+    final imageFile = File(photo.path);
+    final size = await imageFile.length();
+    if (size > _maxUploadBytes) {
+      _showSnack(
+        'A foto ficou acima de 5 MB mesmo apos a compactacao. Tire novamente com mais distancia ou menos zoom.',
+      );
+      return;
+    }
+
+    setState(() => _selectedImages.add(imageFile));
 
     final remaining = _remainingImages;
     _showSnack(
@@ -168,6 +188,24 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
         );
 
         _showSnack('Forrageira enviada com sucesso!');
+      } on ImageUploadException catch (e) {
+        if (!e.isRetryable) {
+          _showSnack(e.message);
+          return;
+        }
+
+        await queueService.enqueue(
+          name: _resolvedForageName,
+          notes: _notesController.text.trim(),
+          userId: uid,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          images: _selectedImages,
+        );
+
+        _showSnack(
+          'An\u00e1lise salva offline. Ela ser\u00e1 encaminhada assim que houver internet.',
+        );
       } catch (_) {
         await queueService.enqueue(
           name: _resolvedForageName,
@@ -184,7 +222,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
       }
 
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        _returnToHome();
       }
     } catch (e) {
       _showSnack('Erro ao enviar: $e');
@@ -196,8 +234,74 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    final messenger = ScaffoldMessenger.of(context);
+    final mediaQuery = MediaQuery.of(context);
+
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            mediaQuery.padding.bottom + _bottomActionBarHeight,
+          ),
+        ),
+      );
+  }
+
+  void _returnToHome() {
+    Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      mainScreenKey.currentState?.setIndex(0);
+    });
+  }
+
+  double _contentBottomPadding(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    return _bottomActionBarHeight + mediaQuery.padding.bottom + 32;
+  }
+
+  String _photoHelperText() {
+    final remaining = _remainingImages;
+    if (remaining == 0) {
+      return 'As 5 fotos foram capturadas. Revise as imagens abaixo e toque em Enviar.';
+    }
+
+    return 'Cada foto e compactada automaticamente para facilitar o envio. Faltam $remaining foto(s).';
+  }
+
+  Widget _buildSelectedPhotosHeader(ThemeData theme) {
+    final captured = _selectedImages.length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Fotos capturadas',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            '$captured/$_maxImages',
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -206,10 +310,6 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     final theme = Theme.of(context);
     final captured = _selectedImages.length;
     final isCaptureComplete = captured >= _maxImages;
-    final userId = _userId ?? '';
-    final queueService = context.watch<PendingAnalysisQueueService>();
-    final pendingCount =
-        userId.isEmpty ? 0 : queueService.pendingCountForUser(userId);
 
     return Scaffold(
       appBar: AppBar(
@@ -220,6 +320,9 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
             Text('Nova an\u00e1lise'),
           ],
         ),
+        actions: [
+          if (_userId != null) NotificationBellButton(userId: _userId!),
+        ],
       ),
       bottomNavigationBar: SafeArea(
         top: false,
@@ -229,7 +332,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 14,
                 offset: const Offset(0, -4),
               ),
@@ -268,7 +371,12 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            _contentBottomPadding(context),
+          ),
           child: Form(
             key: _formKey,
             child: Column(
@@ -288,8 +396,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
                 const SizedBox(height: 24),
                 AppTextField(
                   controller: _nameController,
-                  label:
-                      'Voc\u00ea conhece essa forrageira por algum nome?',
+                  label: 'Voc\u00ea conhece essa forrageira por algum nome?',
                   icon: Icons.grass,
                 ),
                 const SizedBox(height: 16),
@@ -302,10 +409,6 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
                 const SizedBox(height: 24),
                 _buildCaptureStatus(theme),
                 const SizedBox(height: 16),
-                if (pendingCount > 0) ...[
-                  _buildOfflineSyncCard(theme, pendingCount, queueService),
-                  const SizedBox(height: 16),
-                ],
                 if (_isCheckingFirstSubmission)
                   const Center(
                     child: Padding(
@@ -322,10 +425,21 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
                   'Toque em uma foto para ampliar. Use o X para remover e refazer.',
                   style: theme.textTheme.bodySmall,
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  _photoHelperText(),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.black54,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 _buildPhotoChecklist(theme),
                 const SizedBox(height: 16),
-                if (_selectedImages.isNotEmpty) _buildImageGrid(),
+                if (_selectedImages.isNotEmpty) ...[
+                  _buildSelectedPhotosHeader(theme),
+                  const SizedBox(height: 12),
+                  _buildImageGrid(),
+                ],
                 const SizedBox(height: 40),
               ],
             ),
@@ -342,7 +456,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withOpacity(0.08),
+        color: theme.colorScheme.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -378,68 +492,6 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(value: captured / _maxImages),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOfflineSyncCard(
-    ThemeData theme,
-    int pendingCount,
-    PendingAnalysisQueueService queueService,
-  ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E6),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE1C062)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.cloud_off_outlined, color: Color(0xFF8A6B14)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Envios aguardando internet',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Text(
-                '$pendingCount',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            queueService.isSyncing
-                ? 'Estamos tentando sincronizar suas an\u00e1lises pendentes.'
-                : 'Essas an\u00e1lises ser\u00e3o enviadas automaticamente quando a conex\u00e3o voltar.',
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: queueService.isSyncing ? null : _syncPendingAnalyses,
-              icon: queueService.isSyncing
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.sync),
-              label: const Text('Tentar sincronizar agora'),
-            ),
           ),
         ],
       ),

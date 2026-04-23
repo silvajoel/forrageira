@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -56,12 +58,7 @@ void main() async {
   }
 
   final fcmService = FCMService();
-  try {
-    await fcmService.init();
-  } catch (e, stackTrace) {
-    debugPrint('Falha ao inicializar FCM: $e');
-    debugPrintStack(stackTrace: stackTrace);
-  }
+  unawaited(_initFcmInBackground(fcmService));
 
   runApp(
     MultiProvider(
@@ -77,6 +74,15 @@ void main() async {
       child: const MyApp(),
     ),
   );
+}
+
+Future<void> _initFcmInBackground(FCMService fcmService) async {
+  try {
+    await fcmService.init().timeout(const Duration(seconds: 8));
+  } catch (e, stackTrace) {
+    debugPrint('Falha ao inicializar FCM em segundo plano: $e');
+    debugPrintStack(stackTrace: stackTrace);
+  }
 }
 
 class MyApp extends StatelessWidget {

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:forrageira/services/auth_service.dart';
+import 'package:forrageira/widgets/notification_bell_button.dart';
 import 'package:forrageira/widgets/profile_option.dart';
 import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -49,6 +50,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text('Minha Conta'),
           ],
         ),
+        actions: [
+          if (user?.uid != null) NotificationBellButton(userId: user!.uid),
+        ],
       ),
       body: SafeArea(
         child: ListView(
@@ -101,7 +105,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text("Usuário", style: TextStyle(color: Colors.grey)),
-                Text(username, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(username,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
                 Text(email, style: const TextStyle(color: Colors.grey)),
               ],
             ),
@@ -111,7 +116,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildOptionsCard(AuthService authService, String email, String username,) {
+  Widget _buildOptionsCard(
+    AuthService authService,
+    String email,
+    String username,
+  ) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 4,
@@ -174,53 +183,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     controller: _passwordController,
                     label: "Senha atual",
                     obscure: _obscurePassword,
-                    toggle: () => setState(() => _obscurePassword = !_obscurePassword),
+                    toggle: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   const SizedBox(height: 12),
                   _passwordField(
                     controller: _newPasswordController,
                     label: "Nova senha",
                     obscure: _obscureNewPassword,
-                    toggle: () => setState(() => _obscureNewPassword = !_obscureNewPassword),
+                    toggle: () => setState(
+                        () => _obscureNewPassword = !_obscureNewPassword),
                   ),
                   const SizedBox(height: 12),
                   _passwordField(
                     controller: _confirmPasswordController,
                     label: "Confirmar senha",
                     obscure: _obscureConfirmPassword,
-                    toggle: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                    toggle: () => setState(() =>
+                        _obscureConfirmPassword = !_obscureConfirmPassword),
                   ),
                 ],
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Cancelar")),
                 TextButton(
                   onPressed: isLoading
                       ? null
                       : () async {
-                    if (_newPasswordController.text !=
-                        _confirmPasswordController.text) {
-                      _showError("As senhas não conferem");
-                      return;
-                    }
+                          if (_newPasswordController.text !=
+                              _confirmPasswordController.text) {
+                            _showError("As senhas não conferem");
+                            return;
+                          }
 
-                    try {
-                      setState(() => isLoading = true);
-                      await authService.resetPasswordFromCurrentPassword(
-                        email: email,
-                        currentPassword: _passwordController.text,
-                        newPassword: _newPasswordController.text,
-                      );
-                      Navigator.pop(context);
-                      _showSuccess("Senha alterada com sucesso");
-                    } catch (_) {
-                      setState(() => isLoading = false);
-                      _showError("Senha atual incorreta");
-                    }
-                  },
+                          try {
+                            setState(() => isLoading = true);
+                            await authService.resetPasswordFromCurrentPassword(
+                              email: email,
+                              currentPassword: _passwordController.text,
+                              newPassword: _newPasswordController.text,
+                            );
+                            if (!mounted) return;
+                            Navigator.pop(context);
+                            _showSuccess("Senha alterada com sucesso");
+                          } catch (_) {
+                            setState(() => isLoading = false);
+                            _showError("Senha atual incorreta");
+                          }
+                        },
                   child: isLoading
                       ? const CircularProgressIndicator(strokeWidth: 2)
-                      : const Text("Alterar", style: TextStyle(color: Colors.red)),
+                      : const Text("Alterar",
+                          style: TextStyle(color: Colors.red)),
                 ),
               ],
             );
@@ -259,22 +275,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: isLoading
                       ? null
                       : () async {
-                    if (_nameController.text.trim().isEmpty) {
-                      _showError("Nome não pode ser vazio");
-                      return;
-                    }
+                          if (_nameController.text.trim().isEmpty) {
+                            _showError("Nome não pode ser vazio");
+                            return;
+                          }
 
-                    try {
-                      setState(() => isLoading = true);
-                      await authService
-                          .updateUsername(_nameController.text.trim());
-                      Navigator.pop(context);
-                      _showSuccess("Nome alterado com sucesso");
-                    } catch (e) {
-                      setState(() => isLoading = false);
-                      _showError("Erro ao atualizar nome");
-                    }
-                  },
+                          try {
+                            setState(() => isLoading = true);
+                            await authService
+                                .updateUsername(_nameController.text.trim());
+                            if (!mounted) return;
+                            Navigator.pop(context);
+                            _showSuccess("Nome alterado com sucesso");
+                          } catch (e) {
+                            setState(() => isLoading = false);
+                            _showError("Erro ao atualizar nome");
+                          }
+                        },
                   child: isLoading
                       ? const CircularProgressIndicator(strokeWidth: 2)
                       : const Text("Salvar"),
@@ -286,6 +303,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
   }
+
   // =========================
   // EXCLUIR CONTA
   // =========================
@@ -305,28 +323,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 controller: senhaController,
                 obscureText: true,
                 decoration: InputDecoration(
-                    labelText: "Senha",
-                    border: const OutlineInputBorder(),
+                  labelText: "Senha",
+                  border: const OutlineInputBorder(),
                 ),
-
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Cancelar")),
                 TextButton(
                   onPressed: isLoading
                       ? null
                       : () async {
-                    try {
-                      setState(() => isLoading = true);
-                      await authService.deleteAccount(email, senhaController.text);
-                      Navigator.pop(context);
-                      _showSuccess("Conta excluída com sucesso");
-                    } catch (_) {
-                      setState(() => isLoading = false);
-                      _showError("Senha incorreta");
-                    }
-                  },
-                  child: const Text("Excluir", style: TextStyle(color: Colors.red)),
+                          try {
+                            setState(() => isLoading = true);
+                            await authService.deleteAccount(
+                              email,
+                              senhaController.text,
+                            );
+                            if (!mounted) return;
+                            Navigator.pop(context);
+                            _showSuccess("Conta excluída com sucesso");
+                          } catch (_) {
+                            setState(() => isLoading = false);
+                            _showError("Senha incorreta");
+                          }
+                        },
+                  child: const Text("Excluir",
+                      style: TextStyle(color: Colors.red)),
                 ),
               ],
             );
@@ -360,22 +384,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _updateUsername() =>
-      _showSuccess("Atualizar nome (em desenvolvimento)");
-
   void _aboutApp() => showAboutDialog(
-    context: context,
-    applicationName: "Forrageira",
-    applicationVersion: "1.0.0",
-  );
+        context: context,
+        applicationName: "Forrageira",
+        applicationVersion: "1.0.0",
+      );
 
-  void _showError(String msg) =>
-      ScaffoldMessenger.of(context).showSnackBar(
+  void _showError(String msg) => ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
 
-  void _showSuccess(String msg) =>
-      ScaffoldMessenger.of(context).showSnackBar(
+  void _showSuccess(String msg) => ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg)),
       );
 }

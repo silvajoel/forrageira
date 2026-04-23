@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:forrageira/models/app_notification.dart';
-import 'package:forrageira/screens/main_screen.dart';
 import 'package:forrageira/services/app_notification_service.dart';
+import 'package:forrageira/services/notification_service.dart';
 import 'package:forrageira/services/user_service.dart';
-import 'package:forrageira/services/i_forage_service.dart';
 import 'package:forrageira/theme/app_colors.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -62,7 +60,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+      stream:
+          FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
       builder: (context, profileSnapshot) {
         final profile = profileSnapshot.data?.data();
         final isAdmin = UserService.isAdminRole(profile);
@@ -102,13 +101,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _scaffold(
-      BuildContext context, {
-        required String uid,
-        required bool isAdmin,
-        required List<AppNotification> notifications,
-      }) {
-    final forageService = context.read<IForageService>();
-    final theme = Theme.of(context);
+    BuildContext context, {
+    required String uid,
+    required bool isAdmin,
+    required List<AppNotification> notifications,
+  }) {
     final unread = notifications.where((n) => !n.read).length;
 
     return Scaffold(
@@ -148,16 +145,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         actions: [
           if (unread > 0)
             TextButton.icon(
-              onPressed: _markingAll ? null : () => _markAllAsRead(uid, isAdmin),
+              onPressed:
+                  _markingAll ? null : () => _markAllAsRead(uid, isAdmin),
               icon: _markingAll
                   ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white70,
-                ),
-              )
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white70,
+                      ),
+                    )
                   : const Icon(Icons.done_all, color: Colors.white70, size: 18),
               label: const Text(
                 'Marcar lidas',
@@ -195,8 +193,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     title: const Text('Limpar notificações'),
                     content: const Text(
                       'Para remover documentos do Firestore seria preciso alterar as regras '
-                          '(hoje delete em app_notifications está desabilitado). '
-                          'Use "Marcar lidas" para zerar o contador e esvaziar a caixa de não lidas.',
+                      '(hoje delete em app_notifications está desabilitado). '
+                      'Use "Marcar lidas" para zerar o contador e esvaziar a caixa de não lidas.',
                     ),
                     actions: [
                       TextButton(
@@ -214,35 +212,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: notifications.isEmpty
           ? _buildEmpty()
           : ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        itemCount: notifications.length,
-        itemBuilder: (context, index) {
-          final item = notifications[index];
-          return _NotificationCard(
-            item: item,
-            formatDate: _formatDate,
-            onTap: () async {
-              try {
-                await _service.markAsRead(item.id);
-              } catch (_) {}
-              final analysisId = item.analysisId;
-              if (analysisId == null || analysisId.isEmpty) return;
-              try {
-                final analysis = await forageService.getById(analysisId);
-                if (!context.mounted) return;
-                final mainScreen =
-                context.findAncestorStateOfType<MainScreenState>();
-                mainScreen?.openAnalysisDetail(analysis);
-              } catch (_) {}
-            },
-            onMarkRead: () async {
-              try {
-                await _service.markAsRead(item.id);
-              } catch (_) {}
-            },
-          );
-        },
-      ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              itemCount: notifications.length,
+              itemBuilder: (context, index) {
+                final item = notifications[index];
+                return _NotificationCard(
+                  item: item,
+                  formatDate: _formatDate,
+                  onTap: () async {
+                    try {
+                      await _service.markAsRead(item.id);
+                    } catch (_) {}
+                    final analysisId = item.analysisId;
+                    if (analysisId == null || analysisId.isEmpty) return;
+                    await NotificationService().openAnalysisFromNotification(
+                      analysisId,
+                    );
+                  },
+                  onMarkRead: () async {
+                    try {
+                      await _service.markAsRead(item.id);
+                    } catch (_) {}
+                  },
+                );
+              },
+            ),
     );
   }
 

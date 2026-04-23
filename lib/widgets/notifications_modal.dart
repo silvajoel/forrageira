@@ -4,12 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:forrageira/models/app_notification.dart';
 import 'package:forrageira/screens/admin/admin_request_analysis_dialog.dart';
 import 'package:forrageira/services/app_notification_service.dart';
+import 'package:forrageira/services/notification_service.dart';
 import 'package:forrageira/services/user_service.dart';
-import 'package:forrageira/services/i_forage_service.dart';
-import 'package:forrageira/screens/main_screen.dart';
-import 'package:forrageira/services/navigation_service.dart';
 import 'package:forrageira/theme/app_colors.dart';
-import 'package:provider/provider.dart';
 
 /// Abre o painel de notificações como um overlay/modal lateral.
 /// Funciona tanto no web (sem BottomNavigation) quanto no mobile.
@@ -169,12 +166,6 @@ class _NotificationsOverlayState extends State<_NotificationsOverlay> {
   }) {
     final unread = notifications.where((n) => !n.read).length;
 
-    // Tenta obter forageService — pode não estar disponível no contexto admin
-    IForageService? forageService;
-    try {
-      forageService = context.read<IForageService>();
-    } catch (_) {}
-
     return Column(
       children: [
         // Barra de ações
@@ -251,23 +242,10 @@ class _NotificationsOverlayState extends State<_NotificationsOverlay> {
                           return;
                         }
 
-                        if (forageService != null) {
-                          try {
-                            final analysis =
-                                await forageService.getById(analysisId);
-                            if (!context.mounted) return;
-                            // Fecha o modal primeiro
-                            Navigator.pop(context);
-                            // Usa navigatorKey para encontrar MainScreenState mesmo
-                            // quando o modal foi aberto via showGeneralDialog (rota nova)
-                            final navContext = navigatorKey.currentContext;
-                            if (navContext != null) {
-                              final mainScreen = navContext
-                                  .findAncestorStateOfType<MainScreenState>();
-                              mainScreen?.openAnalysisDetail(analysis);
-                            }
-                          } catch (_) {}
-                        }
+                        if (!context.mounted) return;
+                        Navigator.pop(context);
+                        await NotificationService()
+                            .openAnalysisFromNotification(analysisId);
                       },
                       onMarkRead: () async {
                         try {
@@ -328,12 +306,19 @@ class _NotifTile extends StatelessWidget {
 
   IconData get _icon {
     final t = item.title.toLowerCase();
-    if (t.contains('recebida') || t.contains('enviada'))
+    if (t.contains('recebida') || t.contains('enviada')) {
       return Icons.upload_file_outlined;
-    if (t.contains('concluída') || t.contains('finalizada'))
+    }
+    if (t.contains('concluida') ||
+        t.contains('finalizada') ||
+        t.contains('conclu')) {
       return Icons.check_circle_outline;
-    if (t.contains('nova análise') || t.contains('cadastrada'))
+    }
+    if (t.contains('nova analise') ||
+        t.contains('cadastrada') ||
+        t.contains('analise')) {
       return Icons.science_outlined;
+    }
     return Icons.notifications_outlined;
   }
 

@@ -1,22 +1,17 @@
-import 'dart:async';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:forrageira/models/analysis_request.dart';
-import 'package:forrageira/models/app_notification.dart';
 import 'package:forrageira/screens/main_screen.dart';
-import 'package:forrageira/services/app_notification_service.dart';
 import 'package:forrageira/services/auth_service.dart';
 import 'package:forrageira/services/i_forage_service.dart';
 import 'package:forrageira/services/pending_analysis_queue_service.dart';
-import 'package:forrageira/services/user_service.dart';
+import 'package:forrageira/services/plesk_image_storage_service.dart';
+import 'package:forrageira/widgets/notification_bell_button.dart';
 import 'package:provider/provider.dart';
 
 import '../widgets/analysis_item.dart';
-import '../widgets/notifications_modal.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -57,10 +52,20 @@ class _HomeScreenState extends State<HomeScreen> {
         latitude: item.latitude,
         longitude: item.longitude,
         status: 'queued_offline',
-        imageUrls: const [],
+        imageUrls: item.imagePaths,
         createdAt: item.createdAt,
       );
     }).toList();
+  }
+
+  Future<void> _syncPendingAnalyses(
+    BuildContext context,
+    PendingAnalysisQueueService queueService,
+  ) async {
+    await queueService.syncPendingAnalyses(
+      forageService: context.read<IForageService>(),
+      imageStorageService: const PleskImageStorageService(),
+    );
   }
 
   @override
@@ -85,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
-          if (userId.isNotEmpty) _NotificationBellButton(userId: userId),
+          if (userId.isNotEmpty) NotificationBellButton(userId: userId),
         ],
       ),
       body: SafeArea(
@@ -100,7 +105,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.08),
+                        color:
+                            theme.colorScheme.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -130,30 +136,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     if (offlineItems.isNotEmpty) ...[
                       const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF8E6),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE1C062)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.cloud_off_outlined,
-                              color: Color(0xFF8A6B14),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                '${offlineItems.length} an\u00e1lise(s) aguardando internet para envio.',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                      _buildOfflineSyncCard(
+                        context,
+                        theme,
+                        offlineItems.length,
+                        queueService,
                       ),
                     ],
                     const SizedBox(height: 24),
@@ -225,14 +212,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             coverImageUrl: item.imageUrls.isNotEmpty
                                 ? item.imageUrls.first
                                 : null,
-                            onTap: item.status == 'queued_offline'
-                                ? null
-                                : () {
-                                    final mainScreen =
-                                        context.findAncestorStateOfType<
-                                            MainScreenState>();
-                                    mainScreen?.openAnalysisDetail(item);
-                                  },
+                            onTap: () {
+                              final mainScreen = context
+                                  .findAncestorStateOfType<MainScreenState>();
+                              mainScreen?.openAnalysisDetail(item);
+                            },
                           ),
                         );
                       },
@@ -248,139 +232,67 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
 
-class _NotificationBellButton extends StatefulWidget {
-  final String userId;
-
-  const _NotificationBellButton({required this.userId});
-
-  @override
-  State<_NotificationBellButton> createState() =>
-      _NotificationBellButtonState();
-}
-
-class _NotificationBellButtonState extends State<_NotificationBellButton> {
-  final _service = AppNotificationService();
-  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _profileSub;
-  final List<StreamSubscription<List<AppNotification>>> _notifSubs = [];
-
-  int _unread = 0;
-  int? _prevUnread;
-  late final DateTime _allowToastAfter;
-
-  @override
-  void initState() {
-    super.initState();
-    _allowToastAfter = DateTime.now().add(const Duration(seconds: 3));
-    _profileSub = FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.userId)
-        .snapshots()
-        .listen(_onProfile);
-  }
-
-  void _onProfile(DocumentSnapshot<Map<String, dynamic>> snap) {
-    for (final subscription in _notifSubs) {
-      subscription.cancel();
-    }
-    _notifSubs.clear();
-
-    final profile = snap.data();
-    final isAdmin = UserService.isAdminRole(profile);
-
-    var userItems = <AppNotification>[];
-    var adminItems = <AppNotification>[];
-
-    void emit() {
-      final merged = isAdmin ? [...userItems, ...adminItems] : userItems;
-      final unread = merged.where((notification) => !notification.read).length;
-      final prev = _prevUnread;
-      final showToast = prev != null &&
-          unread > prev &&
-          DateTime.now().isAfter(_allowToastAfter);
-      if (!mounted) return;
-      setState(() {
-        _prevUnread = unread;
-        _unread = unread;
-      });
-      if (showToast && mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content:
-                  const Text('Voc\u00ea tem novas notifica\u00e7\u00f5es.'),
-              duration: const Duration(seconds: 5),
-              action: SnackBarAction(
-                label: 'Abrir',
-                onPressed: () {
-                  showNotificationsModal(context);
-                },
-              ),
-            ),
-          );
-        });
-      }
-    }
-
-    _notifSubs.add(
-      _service.watchUserNotifications(userId: widget.userId).listen((list) {
-        userItems = list;
-        emit();
-      }),
-    );
-
-    if (isAdmin) {
-      _notifSubs.add(
-        _service.watchAdminRoleNotifications().listen((list) {
-          adminItems = list;
-          emit();
-        }),
-      );
-    } else {
-      adminItems = [];
-    }
-  }
-
-  @override
-  void dispose() {
-    _profileSub?.cancel();
-    for (final subscription in _notifSubs) {
-      subscription.cancel();
-    }
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: 'Notifica\u00e7\u00f5es',
-      icon: Stack(
-        clipBehavior: Clip.none,
+  Widget _buildOfflineSyncCard(
+    BuildContext context,
+    ThemeData theme,
+    int pendingCount,
+    PendingAnalysisQueueService queueService,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE1C062)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.notifications_none),
-          if (_unread > 0)
-            Positioned(
-              right: -6,
-              top: -6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+          Row(
+            children: [
+              const Icon(
+                Icons.cloud_off_outlined,
+                color: Color(0xFF8A6B14),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
                 child: Text(
-                  _unread > 99 ? '99+' : '$_unread',
-                  style: const TextStyle(color: Colors.white, fontSize: 10),
-                  textAlign: TextAlign.center,
+                  '$pendingCount an\u00e1lise(s) aguardando internet para envio.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            queueService.isSyncing
+                ? 'Estamos tentando sincronizar suas an\u00e1lises pendentes.'
+                : 'Toque abaixo para tentar sincronizar assim que a conex\u00e3o voltar.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: queueService.isSyncing
+                ? null
+                : () => _syncPendingAnalyses(context, queueService),
+            icon: queueService.isSyncing
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync),
+            label: Text(
+              queueService.isSyncing
+                  ? 'Sincronizando'
+                  : 'Tentar sincronizar agora',
             ),
+          ),
         ],
       ),
-      onPressed: () => showNotificationsModal(context),
     );
   }
 }

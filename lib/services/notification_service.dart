@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:provider/provider.dart';
@@ -77,14 +80,27 @@ class NotificationService {
     await _openAnalysisFromPayload(payloadId);
   }
 
-  Future<void> _openAnalysisFromPayload(String payloadId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+  Future<void> openAnalysisFromNotification(String payloadId) async {
+    await _openAnalysisFromPayload(payloadId);
+  }
+
+  Future<void> _openAnalysisFromPayload(
+    String payloadId, {
+    int attempt = 0,
+  }) async {
+    if (payloadId.isEmpty) return;
+
     final context = navigatorKey.currentContext;
-    if (context == null) return;
+    if (context == null) {
+      _retryOpenAnalysis(payloadId, attempt);
+      return;
+    }
 
     try {
       final forageService = Provider.of<IForageService>(context, listen: false);
-      final analysis = await forageService.getById(payloadId);
+      final analysis = await forageService
+          .getById(payloadId)
+          .timeout(const Duration(seconds: 8));
 
       if (mainScreenKey.currentState != null) {
         mainScreenKey.currentState!.openAnalysisDetail(analysis);
@@ -97,9 +113,31 @@ class NotificationService {
       );
 
       await Future.delayed(const Duration(milliseconds: 800));
-      mainScreenKey.currentState?.openAnalysisDetail(analysis);
+      final mainScreenState = mainScreenKey.currentState;
+      if (mainScreenState == null) {
+        _retryOpenAnalysis(payloadId, attempt);
+        return;
+      }
+
+      mainScreenState.openAnalysisDetail(analysis);
     } catch (e) {
-      print('Erro ao abrir analise pela notificacao: $e');
+      if (attempt < 5) {
+        _retryOpenAnalysis(payloadId, attempt);
+        return;
+      }
+
+      debugPrint('Erro ao abrir analise pela notificacao: $e');
     }
+  }
+
+  void _retryOpenAnalysis(String payloadId, int attempt) {
+    if (attempt >= 5) return;
+
+    unawaited(
+      Future.delayed(
+        const Duration(milliseconds: 700),
+        () => _openAnalysisFromPayload(payloadId, attempt: attempt + 1),
+      ),
+    );
   }
 }

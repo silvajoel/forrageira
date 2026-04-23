@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:forrageira/services/app_notification_service.dart';
 import 'package:forrageira/services/audit_log_service.dart';
+import 'package:forrageira/utils/image_url_resolver.dart';
+import 'package:forrageira/widgets/app_smart_image.dart';
 import 'package:forrageira/widgets/image_viewer_dialog.dart';
 
 class AdminRequestAnalysisDialog extends StatefulWidget {
@@ -117,6 +119,7 @@ class _AdminRequestAnalysisDialogState
         _resolvedImageUrls = (imageListRaw as List)
             .map((e) => e.toString())
             .where((s) => s.isNotEmpty)
+            .map(ImageUrlResolver.resolve)
             .toList();
         if (_resolvedImageUrls.isEmpty) {
           final singleUrl = (request['image_url'] ??
@@ -125,7 +128,7 @@ class _AdminRequestAnalysisDialogState
               '')
               .toString();
           if (singleUrl.isNotEmpty) {
-            _resolvedImageUrls.add(singleUrl);
+            _resolvedImageUrls.add(ImageUrlResolver.resolve(singleUrl));
           }
         }
         _allImagesFailed = false;
@@ -560,8 +563,8 @@ class _AdminRequestAnalysisDialogState
     await showImageViewerDialog(
       context: context,
       title: 'Imagem ${index + 1}',
-      child: Image.network(
-        _resolvedImageUrls[index],
+      child: AppSmartImage(
+        source: _resolvedImageUrls[index],
         fit: BoxFit.contain,
         errorBuilder: (_, __, ___) => const Icon(
           Icons.broken_image,
@@ -967,8 +970,8 @@ class _AdminRequestAnalysisDialogState
               onTap: _openSelectedImagePreview,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  _resolvedImageUrls[_mainImageIndex.clamp(
+                child: AppSmartImage(
+                  source: _resolvedImageUrls[_mainImageIndex.clamp(
                       0, _resolvedImageUrls.length - 1)],
                   width: double.infinity,
                   height: double.infinity,
@@ -1024,8 +1027,8 @@ class _AdminRequestAnalysisDialogState
                       borderRadius: BorderRadius.circular(8),
                       child: Stack(
                         children: [
-                          Image.network(
-                            _resolvedImageUrls[index],
+                          AppSmartImage(
+                            source: _resolvedImageUrls[index],
                             width: 70,
                             height: 70,
                             fit: BoxFit.cover,

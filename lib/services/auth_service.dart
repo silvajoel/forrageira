@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService extends ChangeNotifier {
+  static const String _lastKnownSessionKey = 'last_known_authenticated_user';
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
@@ -19,8 +21,19 @@ class AuthService extends ChangeNotifier {
     _auth.authStateChanges().listen((User? user) {
       _currentUser = user;
       isLoading = false;
+      _persistLastKnownSession(user != null);
       notifyListeners();
     });
+  }
+
+  Future<void> _persistLastKnownSession(bool isAuthenticated) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_lastKnownSessionKey, isAuthenticated);
+  }
+
+  static Future<bool> getLastKnownAuthenticatedUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_lastKnownSessionKey) ?? false;
   }
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();

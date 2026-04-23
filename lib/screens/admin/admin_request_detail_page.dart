@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:forrageira/services/app_notification_service.dart';
+import 'package:forrageira/utils/image_url_resolver.dart';
+import 'package:forrageira/widgets/app_smart_image.dart';
 
 class AdminRequestDetailPage extends StatefulWidget {
   final String requestId;
@@ -131,7 +133,10 @@ class _AdminRequestDetailPageState extends State<AdminRequestDetailPage> {
               ? (req['species_id'] ?? '').toString()
               : null;
 
-          final imageUrl = (req['image_url'] ?? req['photo_url'] ?? req['image'] ?? '').toString();
+          final imageUrl = ImageUrlResolver.resolve(
+            (req['image_url'] ?? req['photo_url'] ?? req['image'] ?? '')
+                .toString(),
+          );
 
           return FutureBuilder(
             future: Future.wait<dynamic>([
@@ -209,8 +214,8 @@ class _AdminRequestDetailPageState extends State<AdminRequestDetailPage> {
                               ? const Center(child: Text('Imagem não disponível'))
                               : ClipRRect(
                                   borderRadius: BorderRadius.circular(14),
-                                  child: Image.network(
-                                    imageUrl,
+                                  child: AppSmartImage(
+                                    source: imageUrl,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) {
                                       return const Center(

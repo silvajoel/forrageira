@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:forrageira/models/analysis_request.dart';
 import 'package:forrageira/screens/main_screen.dart';
+import 'package:forrageira/widgets/app_smart_image.dart';
 import 'package:forrageira/widgets/image_viewer_dialog.dart';
 
 class AnalysisDetailScreen extends StatelessWidget {
@@ -198,37 +199,41 @@ class AnalysisDetailScreen extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             itemCount: analysis.imageUrls.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, index) => InkWell(
-              onTap: () => showImageViewerDialog(
-                context: context,
-                title: 'Imagem ${index + 1}',
-                child: Image.network(
-                  analysis.imageUrls[index],
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(
-                    Icons.broken_image,
-                    color: Colors.white70,
-                    size: 48,
+            itemBuilder: (context, index) {
+              final imagePath = analysis.imageUrls[index];
+
+              return InkWell(
+                onTap: () => showImageViewerDialog(
+                  context: context,
+                  title: 'Imagem ${index + 1}',
+                  child: AppSmartImage(
+                    source: imagePath,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.broken_image,
+                      color: Colors.white70,
+                      size: 48,
+                    ),
                   ),
                 ),
-              ),
-              borderRadius: BorderRadius.circular(8),
-              child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  analysis.imageUrls[index],
-                  width: 116,
-                  height: 116,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: AppSmartImage(
+                    source: imagePath,
                     width: 116,
                     height: 116,
-                    color: Colors.grey.shade200,
-                    child: const Icon(Icons.broken_image),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 116,
+                      height: 116,
+                      color: Colors.grey.shade200,
+                      child: const Icon(Icons.broken_image),
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
         const SizedBox(height: 8),
