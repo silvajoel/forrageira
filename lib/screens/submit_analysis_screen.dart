@@ -222,6 +222,7 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
       }
 
       if (mounted) {
+        _clearSubmissionState();
         _returnToHome();
       }
     } catch (e) {
@@ -231,6 +232,16 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
         setState(() => _isUploading = false);
       }
     }
+  }
+
+  void _clearSubmissionState() {
+    _formKey.currentState?.reset();
+    _nameController.clear();
+    _notesController.clear();
+    setState(() {
+      _selectedImages.clear();
+      _isFirstSubmission = false;
+    });
   }
 
   void _showSnack(String message) {
@@ -543,43 +554,63 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
           ),
           const SizedBox(height: 16),
           SizedBox(
-            height: 242,
+            height: 370,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: const [
                 _TutorialPhotoCard(
                   number: '1',
-                  title: 'Folha e colmo',
-                  subtitle:
-                      'Aproxime o caule e as folhas, com foco no detalhe.',
-                  hint: 'Evite folhas na frente do ponto principal.',
+                  title: 'Planta no ambiente',
+                  subtitle: 'Tire uma foto da planta no ambiente.',
+                  hint:
+                      'Mostre o porte e o local onde ela est\u00e1 crescendo.',
                   icon: Icons.grass,
-                  imagePath: 'assets/images/tutorial_folha_colmo.png',
+                  imagePath: 'assets/images/planta_inteira.png',
                 ),
                 SizedBox(width: 12),
                 _TutorialPhotoCard(
                   number: '2',
-                  title: 'Vista lateral',
-                  subtitle: 'Mostre a espiga ou infloresc\u00eancia de lado.',
-                  hint: 'Tente enquadrar sem cortar a ponta.',
-                  icon: Icons.rotate_90_degrees_ccw,
-                  imagePath: 'assets/images/tutorial_vista_lateral.png',
+                  title: 'Detalhe da planta',
+                  subtitle: 'Fotografe um detalhe da planta.',
+                  hint: 'Inclua folhas e colmos com boa nitidez.',
+                  icon: Icons.center_focus_strong,
+                  imagePath: 'assets/images/tutorial_vista_frontal.png',
                 ),
                 SizedBox(width: 12),
                 _TutorialPhotoCard(
                   number: '3',
-                  title: 'Vista frontal',
-                  subtitle: 'Registre a parte frontal da espiga com boa luz.',
-                  hint: 'Centralize o detalhe principal na foto.',
-                  icon: Icons.center_focus_strong,
-                  imagePath: 'assets/images/tutorial_vista_frontal.png',
+                  title: 'Infloresc\u00eancia',
+                  subtitle: 'Tire uma foto da infloresc\u00eancia.',
+                  hint: 'Enquadre a estrutura inteira, sem cortar a ponta.',
+                  icon: Icons.local_florist_outlined,
+                  imagePath: 'assets/images/tutorial_inflorescencia.png',
+                ),
+                SizedBox(width: 12),
+                _TutorialPhotoCard(
+                  number: '4',
+                  title: 'Detalhe pr\u00f3ximo',
+                  subtitle: 'Fa\u00e7a uma foto de detalhe mais pr\u00f3ximo.',
+                  hint: 'Aproxime sem perder o foco do ponto principal.',
+                  icon: Icons.zoom_in,
+                  imagePath: 'assets/images/tutorial_detalhe.png',
+                ),
+                SizedBox(width: 12),
+                _TutorialPhotoCard(
+                  number: '5',
+                  title: 'Outro detalhe \u00fatil',
+                  subtitle:
+                      'Registre algum outro detalhe que possa ser \u00fatil.',
+                  hint:
+                      'Pode ser base, n\u00f3s, pelos, manchas ou outra pista.',
+                  icon: Icons.add_photo_alternate_outlined,
+                  imagePath: 'assets/images/tutorial_outro.png',
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
           Text(
-            'As outras 2 fotos podem complementar com planta inteira e base da forrageira.',
+            'Siga a ordem das fotos para facilitar a identifica\u00e7\u00e3o da forrageira.',
             style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -616,27 +647,27 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
           _buildGuidelineItem(
             icon: Icons.filter_1_outlined,
             title: 'Foto 1',
-            description: 'Planta inteira no ambiente.',
+            description: 'Tire uma foto da planta no ambiente.',
           ),
           _buildGuidelineItem(
             icon: Icons.filter_2_outlined,
             title: 'Foto 2',
-            description: 'Vista frontal da espiga, flor ou fruto.',
+            description: 'Detalhe da planta.',
           ),
           _buildGuidelineItem(
             icon: Icons.filter_3_outlined,
             title: 'Foto 3',
-            description: 'Vista lateral da espiga, flor ou fruto.',
+            description: 'Foto da infloresc\u00eancia.',
           ),
           _buildGuidelineItem(
             icon: Icons.filter_4_outlined,
             title: 'Foto 4',
-            description: 'Folha e colmo com foco.',
+            description: 'Foto de detalhe mais pr\u00f3ximo.',
           ),
           _buildGuidelineItem(
             icon: Icons.filter_5_outlined,
             title: 'Foto 5',
-            description: 'Base, nos ou outro detalhe importante.',
+            description: 'Algum outro detalhe que possa ser \u00fatil.',
           ),
         ],
       ),
@@ -755,7 +786,7 @@ class _TutorialPhotoCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      width: 220,
+      width: 260,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -791,12 +822,15 @@ class _TutorialPhotoCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Expanded(
+          SizedBox(
+            height: 178,
+            width: double.infinity,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(14),
               child: Image.asset(
                 imagePath,
                 width: double.infinity,
+                height: double.infinity,
                 fit: BoxFit.cover,
               ),
             ),
