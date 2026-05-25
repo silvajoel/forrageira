@@ -404,10 +404,12 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
                   'Tire 5 fotos obrigat\u00f3rias da forrageira para enviar a solicita\u00e7\u00e3o.',
                   style: theme.textTheme.bodyMedium,
                 ),
+                const SizedBox(height: 16),
+                _buildTutorialCallout(theme),
                 const SizedBox(height: 24),
                 AppTextField(
                   controller: _nameController,
-                  label: 'Voc\u00ea conhece essa forrageira por algum nome?',
+                  label: 'Nome popular',
                   icon: Icons.grass,
                 ),
                 const SizedBox(height: 16),
@@ -456,6 +458,58 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTutorialCallout(ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF5DF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF9FBE7F)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.photo_library_outlined,
+              color: Color(0xFF37541D),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Veja exemplos antes de fotografar',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Confira quais detalhes ajudam na identificação.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton.icon(
+            onPressed: _showTutorialExamples,
+            icon: const Icon(Icons.visibility_outlined, size: 18),
+            label: const Text('Ver'),
+          ),
+        ],
       ),
     );
   }
@@ -509,7 +563,45 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     );
   }
 
-  Widget _buildFirstSubmissionTutorial(ThemeData theme) {
+  void _showTutorialExamples() {
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.92,
+        minChildSize: 0.72,
+        maxChildSize: 0.96,
+        expand: false,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            child: _buildFirstSubmissionTutorial(
+              theme,
+              layout: _TutorialLayout.vertical,
+              showCloseButton: true,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFirstSubmissionTutorial(
+    ThemeData theme, {
+    _TutorialLayout layout = _TutorialLayout.horizontal,
+    bool showCloseButton = false,
+  }) {
+    final isVertical = layout == _TutorialLayout.vertical;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -550,64 +642,37 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
                   ],
                 ),
               ),
+              if (showCloseButton) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: 'Fechar',
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            height: 370,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: const [
-                _TutorialPhotoCard(
-                  number: '1',
-                  title: 'Planta no ambiente',
-                  subtitle: 'Tire uma foto da planta no ambiente.',
-                  hint:
-                      'Mostre o porte e o local onde ela est\u00e1 crescendo.',
-                  icon: Icons.grass,
-                  imagePath: 'assets/images/planta_inteira.png',
+          if (isVertical)
+            Column(
+              children: _tutorialPhotoCards(
+                width: double.infinity,
+                imageHeight: 210,
+                separator: const SizedBox(height: 12),
+              ),
+            )
+          else
+            SizedBox(
+              height: 370,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: _tutorialPhotoCards(
+                  width: 260,
+                  imageHeight: 178,
+                  separator: const SizedBox(width: 12),
                 ),
-                SizedBox(width: 12),
-                _TutorialPhotoCard(
-                  number: '2',
-                  title: 'Detalhe da planta',
-                  subtitle: 'Fotografe um detalhe da planta.',
-                  hint: 'Inclua folhas e colmos com boa nitidez.',
-                  icon: Icons.center_focus_strong,
-                  imagePath: 'assets/images/tutorial_vista_frontal.png',
-                ),
-                SizedBox(width: 12),
-                _TutorialPhotoCard(
-                  number: '3',
-                  title: 'Infloresc\u00eancia',
-                  subtitle: 'Tire uma foto da infloresc\u00eancia.',
-                  hint: 'Enquadre a estrutura inteira, sem cortar a ponta.',
-                  icon: Icons.local_florist_outlined,
-                  imagePath: 'assets/images/tutorial_inflorescencia.png',
-                ),
-                SizedBox(width: 12),
-                _TutorialPhotoCard(
-                  number: '4',
-                  title: 'Detalhe pr\u00f3ximo',
-                  subtitle: 'Fa\u00e7a uma foto de detalhe mais pr\u00f3ximo.',
-                  hint: 'Aproxime sem perder o foco do ponto principal.',
-                  icon: Icons.zoom_in,
-                  imagePath: 'assets/images/tutorial_detalhe.png',
-                ),
-                SizedBox(width: 12),
-                _TutorialPhotoCard(
-                  number: '5',
-                  title: 'Outro detalhe \u00fatil',
-                  subtitle:
-                      'Registre algum outro detalhe que possa ser \u00fatil.',
-                  hint:
-                      'Pode ser base, n\u00f3s, pelos, manchas ou outra pista.',
-                  icon: Icons.add_photo_alternate_outlined,
-                  imagePath: 'assets/images/tutorial_outro.png',
-                ),
-              ],
+              ),
             ),
-          ),
           const SizedBox(height: 12),
           Text(
             'Siga a ordem das fotos para facilitar a identifica\u00e7\u00e3o da forrageira.',
@@ -618,6 +683,72 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
         ],
       ),
     );
+  }
+
+  List<Widget> _tutorialPhotoCards({
+    required double width,
+    required double imageHeight,
+    required Widget separator,
+  }) {
+    final cards = [
+      _TutorialPhotoCard(
+        number: '1',
+        title: 'Planta no ambiente',
+        subtitle: 'Tire uma foto da planta no ambiente.',
+        hint: 'Mostre o porte e o local onde ela est\u00e1 crescendo.',
+        icon: Icons.grass,
+        imagePath: 'assets/images/planta_inteira.png',
+        width: width,
+        imageHeight: imageHeight,
+      ),
+      _TutorialPhotoCard(
+        number: '2',
+        title: 'Detalhe da planta',
+        subtitle: 'Fotografe um detalhe da planta.',
+        hint: 'Inclua folhas e colmos com boa nitidez.',
+        icon: Icons.center_focus_strong,
+        imagePath: 'assets/images/tutorial_vista_frontal.png',
+        width: width,
+        imageHeight: imageHeight,
+      ),
+      _TutorialPhotoCard(
+        number: '3',
+        title: 'Infloresc\u00eancia',
+        subtitle: 'Tire uma foto da infloresc\u00eancia.',
+        hint: 'Enquadre a estrutura inteira, sem cortar a ponta.',
+        icon: Icons.local_florist_outlined,
+        imagePath: 'assets/images/tutorial_inflorescencia.png',
+        width: width,
+        imageHeight: imageHeight,
+      ),
+      _TutorialPhotoCard(
+        number: '4',
+        title: 'Detalhe pr\u00f3ximo',
+        subtitle: 'Fa\u00e7a uma foto de detalhe mais pr\u00f3ximo.',
+        hint: 'Aproxime sem perder o foco do ponto principal.',
+        icon: Icons.zoom_in,
+        imagePath: 'assets/images/tutorial_detalhe.png',
+        width: width,
+        imageHeight: imageHeight,
+      ),
+      _TutorialPhotoCard(
+        number: '5',
+        title: 'Outro detalhe \u00fatil',
+        subtitle: 'Registre algum outro detalhe que possa ser \u00fatil.',
+        hint: 'Pode ser base, n\u00f3s, pelos, manchas ou outra pista.',
+        icon: Icons.add_photo_alternate_outlined,
+        imagePath: 'assets/images/tutorial_outro.png',
+        width: width,
+        imageHeight: imageHeight,
+      ),
+    ];
+
+    return [
+      for (var i = 0; i < cards.length; i++) ...[
+        if (i > 0) separator,
+        cards[i],
+      ],
+    ];
   }
 
   Widget _buildPhotoChecklist(ThemeData theme) {
@@ -764,6 +895,8 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
   }
 }
 
+enum _TutorialLayout { horizontal, vertical }
+
 class _TutorialPhotoCard extends StatelessWidget {
   final String number;
   final String title;
@@ -771,6 +904,8 @@ class _TutorialPhotoCard extends StatelessWidget {
   final String hint;
   final IconData icon;
   final String imagePath;
+  final double width;
+  final double imageHeight;
 
   const _TutorialPhotoCard({
     required this.number,
@@ -779,6 +914,8 @@ class _TutorialPhotoCard extends StatelessWidget {
     required this.hint,
     required this.icon,
     required this.imagePath,
+    required this.width,
+    required this.imageHeight,
   });
 
   @override
@@ -786,7 +923,7 @@ class _TutorialPhotoCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      width: 260,
+      width: width,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -823,7 +960,7 @@ class _TutorialPhotoCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 178,
+            height: imageHeight,
             width: double.infinity,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(14),

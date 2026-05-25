@@ -286,7 +286,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
             const Icon(Icons.eco, size: 44, color: Color(0xFF1F5B3F)),
             const SizedBox(height: 10),
             const Text(
-              'Admin • Forrageira',
+              'Admin • Qual é o meu capim?',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 18),

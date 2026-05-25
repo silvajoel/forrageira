@@ -386,8 +386,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _aboutApp() => showAboutDialog(
         context: context,
-        applicationName: "Forrageira",
-        applicationVersion: "1.0.0",
+        applicationName: "Qual é o meu capim?",
+        applicationVersion: "1.0.2",
+        children: const [
+          SizedBox(height: 12),
+          Text(
+            'Este aplicativo faz parte de um projeto de extensão da UFSJ, '
+            'desenvolvido em parceria entre os departamentos de Zootecnia e de '
+            'Ciências da Computação.',
+          ),
+          SizedBox(height: 12),
+          Text(
+            'A iniciativa está inserida no programa de extensão '
+            '"Empreendedorismo Digital: saberes computacionais para '
+            'aprimoramento de instituições e geração de inovações", coordenado '
+            'pelo professor Dr. Dárlinton Barbosa Feres Carvalho, do '
+            'Departamento de Ciência da Computação (DCOMP), aprovado no âmbito '
+            'do Programa Institucional de Bolsas de Extensão da UFSJ '
+            '(PIBEX-2023).',
+          ),
+          SizedBox(height: 12),
+          Text(
+            'O objetivo é aproximar pesquisadores, especialistas e produtores '
+            'rurais por meio da tecnologia. Com o uso de smartphones, produtores '
+            'podem registrar imagens de forrageiras em suas propriedades, enviar '
+            'informações técnicas e receber análises que apoiem o desempenho das '
+            'atividades no campo.',
+          ),
+          SizedBox(height: 12),
+          Text(
+            'Além de apoiar ações extensionistas, a base de dados gerada pelo '
+            'uso do aplicativo poderá contribuir para pesquisas sobre o '
+            'mapeamento do plantio de variedades forrageiras e para a automação '
+            'da identificação dessas variedades por modelos de inteligência '
+            'artificial.',
+          ),
+        ],
       );
 
   void _showError(String msg) => ScaffoldMessenger.of(context).showSnackBar(

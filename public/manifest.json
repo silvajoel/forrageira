@@ -1,11 +1,11 @@
 {
-    "name": "forrageira",
-    "short_name": "forrageira",
+    "name": "Qual é o meu capim?",
+    "short_name": "Meu capim",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0B2E13",
     "theme_color": "#1F7A2E",
-    "description": "A new Flutter project.",
+    "description": "Identificação de espécies forrageiras com apoio de especialistas da universidade.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -93,7 +93,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      title: 'Forrageira',
+      title: 'Qual é o meu capim?',
       theme: appTheme,
       home: const AppBootstrapPage(),
       routes: {
