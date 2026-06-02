@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
+import '../widgets/google_sign_in_button.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,6 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _senha = TextEditingController();
   final _auth = AuthService();
   final _userService = UserService();
+  bool _googleLoading = false;
 
   bool _obscureSenha = true;
   bool loading = false;
@@ -120,6 +122,58 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _loginWithGoogle() async {
+    setState(() => _googleLoading = true);
+    try {
+      final user = await _auth.signInWithGoogle();
+      if (user == null) {
+        if (mounted) setState(() => _googleLoading = false);
+        return;
+      }
+
+      final profile = await _userService.getProfileWithRetry(user.uid);
+
+      if (!mounted) return;
+
+      if (profile == null) {
+        await _auth.logout();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Conta Google não encontrada no sistema. Cadastre-se primeiro."),
+          ),
+        );
+        setState(() => _googleLoading = false);
+        return;
+      }
+
+      if (!UserService.isProfileActive(profile)) {
+        await _auth.logout();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Sua conta está inativa. Procure o administrador.")),
+        );
+        setState(() => _googleLoading = false);
+        return;
+      }
+
+      if (UserService.isAdminRole(profile)) {
+        await _auth.logout();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Essa conta é administrativa. Use o painel web.")),
+        );
+        setState(() => _googleLoading = false);
+        return;
+      }
+
+      Navigator.pushReplacementNamed(context, '/home');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Erro ao entrar com Google. Tente novamente.")),
+      );
+      setState(() => _googleLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -148,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 10),
 
                 Text(
-                  "Qual é o meu capim?",
+                  "Que capim é esse?",
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.green,
@@ -214,6 +268,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(color: Colors.green),
                   ),
                 ),
+
+                const Divider(height: 24),
+
+                GoogleSignInButton(
+                  loading: _googleLoading,
+                  onPressed: _loginWithGoogle,
+                ),
+
+                const SizedBox(height: 4),
 
                 TextButton(
                   onPressed: () {

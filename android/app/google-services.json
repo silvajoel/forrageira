@@ -7,12 +7,33 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1055602958265:android:c7032ae3fe15fb3b3aa068",
+        "mobilesdk_app_id": "1:1055602958265:android:a343f6f0d0c2e0cf3aa068",
         "android_client_info": {
           "package_name": "br.edu.ufsj.forrageira"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1055602958265-54degrf750c0oo4e0modfd5ijmn8nofm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "br.edu.ufsj.forrageira",
+            "certificate_hash": "c66777b5d8917e6bd5952bb9c893f4e9a9e81007"
+          }
+        },
+        {
+          "client_id": "1055602958265-rk25unco7gvhop3f0cop6ltc6dvb81l1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "br.edu.ufsj.forrageira",
+            "certificate_hash": "6cf608b461a256110e5ba50ff6061fdebf70b8d9"
+          }
+        },
+        {
+          "client_id": "1055602958265-s5u4icc8fikm1ke16prlgluvg119ndpg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC0FX-HzUKGAjMvVEVL1rCXvcKbsIYvBoo"
@@ -20,7 +41,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1055602958265-s5u4icc8fikm1ke16prlgluvg119ndpg.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1055602958265-jkfee22me177mt0ov6mrc4rn5jh18ish.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.forrageira"
+              }
+            }
+          ]
         }
       }
     }
