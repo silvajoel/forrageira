@@ -3,7 +3,18 @@
     "allow": [
       "Bash(xargs grep:*)",
       "Bash(flutter analyze:*)",
-      "Bash(find lib:*)"
+      "Bash(find lib:*)",
+      "Read(//c/Users/Joel/Downloads/**)",
+      "Bash(dir \"C:\\\\Users\\\\Joel\\\\Downloads\\\\br.edu.ufsj.forrageira_production\")",
+      "PowerShell(Get-Command *)",
+      "Bash(flutter pub *)",
+      "Bash(keytool *)",
+      "PowerShell(& \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\\\\bin\\\\keytool.exe\" -list -v -keystore \"C:\\\\Users\\\\Joel\\\\.android\\\\debug.keystore\" -alias androiddebugkey -storepass android -keypass android)",
+      "PowerShell(& \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\\\\bin\\\\keytool.exe\" -list -v -keystore \"C:\\\\Users\\\\Joel\\\\StudioProjects\\\\forrageira\\\\android\\\\app\\\\upload-keystore.jks\" -alias upload -storepass \"FSo4402@\" -keypass \"FSo4402@\")",
+      "Bash(flutter build *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }

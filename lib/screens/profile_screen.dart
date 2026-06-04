@@ -155,7 +155,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icons.logout,
             title: 'Sair',
             isDanger: true,
-            onTap: authService.logout,
+            onTap: () async {
+              await authService.logout();
+              if (mounted) {
+                Navigator.of(context).pushReplacementNamed('/');
+              }
+            },
           ),
         ],
       ),

@@ -61,6 +61,7 @@ dev_dependencies:
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
   geocoding: ^4.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter_native_splash:
   color: "#FFFFFF"
@@ -70,6 +71,7 @@ flutter_native_splash:
 flutter:
   assets:
     - assets/images/grass.jpg
+    - assets/images/icon.jpeg
     - assets/images/tutorial_folha_colmo.png
     - assets/images/tutorial_vista_lateral.png
     - assets/images/tutorial_vista_frontal.png
