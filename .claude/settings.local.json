@@ -14,7 +14,9 @@
       "Bash(flutter build *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git commit -m 'Atualiza texto da seção Sobre do App *)",
+      "Bash(git commit -m 'Substitui ícone do app pelo icon.png cortado *)"
     ]
   }
 }

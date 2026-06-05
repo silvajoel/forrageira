@@ -71,7 +71,7 @@ flutter_native_splash:
 flutter:
   assets:
     - assets/images/grass.jpg
-    - assets/images/icon.jpeg
+    - assets/images/icon.png
     - assets/images/tutorial_folha_colmo.png
     - assets/images/tutorial_vista_lateral.png
     - assets/images/tutorial_vista_frontal.png
