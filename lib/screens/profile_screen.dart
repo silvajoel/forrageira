@@ -396,35 +396,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: const [
           SizedBox(height: 12),
           Text(
-            'Este aplicativo faz parte de um projeto de extensão da UFSJ, '
-            'desenvolvido em parceria entre os departamentos de Zootecnia e de '
-            'Ciências da Computação.',
+            'Este aplicativo foi desenvolvido por meio de um projeto de extensão '
+            'universitária, resultado de uma iniciativa conjunta dos departamentos '
+            'de Ciência da Computação e Zootecnia da Universidade Federal de São '
+            'João del Rei, Coordenada pelos professores Janaína Azevedo '
+            'Martuscello e Acir M. Soares Jr.',
           ),
           SizedBox(height: 12),
           Text(
-            'A iniciativa está inserida no programa de extensão '
-            '"Empreendedorismo Digital: saberes computacionais para '
-            'aprimoramento de instituições e geração de inovações", coordenado '
-            'pelo professor Dr. Dárlinton Barbosa Feres Carvalho, do '
-            'Departamento de Ciência da Computação (DCOMP), aprovado no âmbito '
-            'do Programa Institucional de Bolsas de Extensão da UFSJ '
-            '(PIBEX-2023).',
+            'Com o uso de smartphones, produtores rurais podem registrar imagens '
+            'de forrageiras em suas propriedades para receber análises e '
+            'recomendações técnicas diretamente de especialistas na universidade.',
           ),
           SizedBox(height: 12),
           Text(
-            'O objetivo é aproximar pesquisadores, especialistas e produtores '
-            'rurais por meio da tecnologia. Com o uso de smartphones, produtores '
-            'podem registrar imagens de forrageiras em suas propriedades, enviar '
-            'informações técnicas e receber análises que apoiem o desempenho das '
-            'atividades no campo.',
+            'A partir do envio de 5 fotos de uma pastagem (ver exemplos), é feita '
+            'a identificação da forrageira. O aplicativo também utiliza a '
+            'localização do dispositivo (com autorização do usuário) para mapear a '
+            'região de pastagem e incluir recomendações personalizadas para a '
+            'variedade identificada.',
           ),
           SizedBox(height: 12),
           Text(
-            'Além de apoiar ações extensionistas, a base de dados gerada pelo '
-            'uso do aplicativo poderá contribuir para pesquisas sobre o '
-            'mapeamento do plantio de variedades forrageiras e para a automação '
-            'da identificação dessas variedades por modelos de inteligência '
-            'artificial.',
+            'Além de apoiar ações extensionistas, a base de dados gerada pelo uso '
+            'do aplicativo contribuirá para pesquisas sobre o mapeamento do plantio '
+            'de variedades forrageiras e para a automação da identificação dessas '
+            'variedades por modelos de inteligência artificial.',
+          ),
+          SizedBox(height: 12),
+          Text(
+            'O projeto tem como objetivo aproximar produtores rurais, pesquisadores '
+            'e especialistas por meio da tecnologia e está inserido no programa de '
+            'extensão "Empreendedorismo Digital: saberes computacionais para '
+            'aprimoramento de instituições e geração de inovações", coordenado pelo '
+            'professor Dr. Dárlinton Barbosa Feres Carvalho, do Departamento de '
+            'Ciência da Computação.',
           ),
         ],
       );
