@@ -3,7 +3,7 @@
     "short_name": "Meu capim",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0B2E13",
+    "background_color": "#FFFFFF",
     "theme_color": "#1F7A2E",
     "description": "Identificação de espécies forrageiras com apoio de especialistas da universidade.",
     "orientation": "portrait-primary",
