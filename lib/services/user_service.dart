@@ -1,23 +1,40 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class UserService {
-  final _db = FirebaseFirestore.instance;
-  final _auth = FirebaseAuth.instance;
+import 'api_client.dart';
+import '../utils/polling.dart';
 
-  Future<void> createUserProfile({
+/// Perfis de usuario sobre a API REST (servidor UFSJ).
+///
+/// O Firebase Auth continua sendo a fonte de identidade (login e troca de
+/// e-mail); apenas os DADOS do perfil deixam o Firestore e passam a viver no
+/// MariaDB via API.
+class UserService {
+  final ApiClient _api;
+  final FirebaseAuth _auth;
+
+  UserService({ApiClient? api, FirebaseAuth? auth})
+      : _api = api ?? ApiClient(),
+        _auth = auth ?? FirebaseAuth.instance;
+
+  /// Cria/sincroniza o perfil do usuario autenticado (id = uid do token).
+  /// Usado no cadastro e no primeiro login.
+  Future<Map<String, dynamic>?> createUserProfile({
     required String uid,
     required String name,
     required String email,
     String role = 'user',
   }) async {
-    await _db.collection('users').doc(uid).set({
+    final data = await _api.post('/auth/sync', body: {
       'name': name,
       'email': email,
-      'role': role,
-      'active': true,
-      'created_at': FieldValue.serverTimestamp(),
     });
+    return data as Map<String, dynamic>?;
+  }
+
+  /// Garante que existe a linha do usuario logado no banco. Idempotente.
+  Future<Map<String, dynamic>?> syncCurrentUser() async {
+    final data = await _api.post('/auth/sync');
+    return data as Map<String, dynamic>?;
   }
 
   Future<void> updateProfile({
@@ -25,54 +42,42 @@ class UserService {
     required String name,
     required String email,
   }) async {
-    await _db.collection('users').doc(uid).update({
-      'name': name,
-      'email': email,
-    });
+    await _api.patch('/users/$uid', body: {'name': name, 'email': email});
   }
 
-  /// Atualiza o e-mail no Firebase Auth.
+  /// Atualiza o e-mail no Firebase Auth (com verificacao) e no banco.
   ///
-  /// - Se o e-mail mudou, envia um e-mail de verificação para o novo endereço.
-  ///   O e-mail só será efetivado no Auth após o usuário clicar no link.
-  /// - Atualiza o Firestore imediatamente (otimista), independente da verificação.
-  /// - Lança [FirebaseAuthException] com code 'requires-recent-login' se a
-  ///   sessão estiver antiga — trate isso na UI pedindo re-autenticação.
+  /// Lanca [FirebaseAuthException] 'requires-recent-login' se a sessao estiver
+  /// antiga — trate na UI pedindo re-autenticacao.
   Future<void> updateEmail({
     required String uid,
     required String newEmail,
   }) async {
     final user = _auth.currentUser;
-
     if (user == null) {
       throw FirebaseAuthException(
         code: 'no-current-user',
-        message: 'Nenhum usuário autenticado.',
+        message: 'Nenhum usuario autenticado.',
       );
     }
 
     final currentEmail = user.email ?? '';
-
-    // Só aciona o Auth se o e-mail realmente mudou
     if (currentEmail != newEmail) {
-      // Envia link de verificação para o novo e-mail.
-      // O Auth só efetiva a troca após o clique no link.
       await user.verifyBeforeUpdateEmail(newEmail);
     }
-
-    // Atualiza o Firestore imediatamente (o Auth será atualizado após verificação)
-    await _db.collection('users').doc(uid).update({'email': newEmail});
+    await _api.patch('/users/$uid', body: {'email': newEmail});
   }
 
-  Future<Map<String, dynamic>?> getProfile(
-    String uid, {
-    Source source = Source.serverAndCache,
-  }) async {
-    final doc = await _db.collection('users').doc(uid).get(
-          GetOptions(source: source),
-        );
-    if (!doc.exists) return null;
-    return doc.data();
+  /// Perfil do usuario autenticado. (O token identifica o usuario; [uid] e
+  /// mantido por compatibilidade.)
+  Future<Map<String, dynamic>?> getProfile(String uid) async {
+    try {
+      final data = await _api.get('/users/me');
+      return data as Map<String, dynamic>?;
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>?> getProfileWithRetry(String uid) async {
@@ -81,30 +86,30 @@ class UserService {
     if (firstProfile == null || !isProfileActive(firstProfile)) {
       await Future.delayed(const Duration(milliseconds: 700));
       try {
-        final refreshedProfile = await getProfile(uid, source: Source.server);
-        if (refreshedProfile != null) {
-          return refreshedProfile;
-        }
+        final refreshed = await getProfile(uid);
+        if (refreshed != null) return refreshed;
       } catch (_) {
         return firstProfile;
       }
     }
-
     return firstProfile;
   }
 
-  /// Só inativa quando [active] é explicitamente `false` (documentos sem o campo contam como ativos).
+  /// So inativa quando [active] e explicitamente `false`.
   static bool isProfileActive(Map<String, dynamic> profile) {
     return profile['active'] != false;
   }
 
-  /// Data de cadastro em `users` (o app usa `createdAt`; documentos manuais podem ter `created_at`).
-  static Timestamp? userCreatedTimestamp(Map<String, dynamic> profile) {
-    final v = profile['createdAt'] ?? profile['created_at'];
-    return v is Timestamp ? v : null;
+  /// Data de cadastro do perfil (ISO-8601 vindo da API).
+  static DateTime? userCreatedTimestamp(Map<String, dynamic> profile) {
+    final v = profile['created_at'] ?? profile['createdAt'];
+    if (v is String && v.isNotEmpty) {
+      return DateTime.tryParse(v)?.toLocal();
+    }
+    return null;
   }
 
-  /// Valor do campo de papel (aceita chave `role` / `Role` e remove espaços invisíveis).
+  /// Valor do campo de papel (aceita `role`/`Role`, remove caracteres invisiveis).
   static String? roleValue(Map<String, dynamic>? profile) {
     if (profile == null) return null;
     dynamic raw;
@@ -116,21 +121,32 @@ class UserService {
     }
     if (raw == null) return null;
     var s = raw.toString().trim();
-    s = s.replaceAll(RegExp(r'[\u200B-\u200D\uFEFF]'), '');
+    // Remove zero-width chars (U+200B..U+200D, U+FEFF) sem literais invisiveis.
+    final invisible =
+        RegExp('[${String.fromCharCodes(const [0x200B, 0x200C, 0x200D, 0xFEFF])}]');
+    s = s.replaceAll(invisible, '');
     return s.toLowerCase();
   }
 
-  /// Alinhado ao login admin: valor textual `admin` (várias capitalizações no Firestore).
   static bool isAdminRole(Map<String, dynamic>? profile) {
     return roleValue(profile) == 'admin';
   }
 
-  Stream<DocumentSnapshot<Map<String, dynamic>>> streamProfile(String uid) {
-    return _db.collection('users').doc(uid).snapshots();
+  /// Stream do perfil do usuario logado (polling).
+  Stream<Map<String, dynamic>?> streamProfile(String uid) {
+    return pollingStream<Map<String, dynamic>?>(() => getProfile(uid));
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> streamUsers() {
-    return _db.collection('users').snapshots();
+  /// Stream da lista de usuarios (admin, polling).
+  Stream<List<Map<String, dynamic>>> streamUsers() {
+    return pollingStream<List<Map<String, dynamic>>>(() => fetchUsers());
+  }
+
+  /// Lista de usuarios (one-shot, para pull-to-refresh).
+  Future<List<Map<String, dynamic>>> fetchUsers() async {
+    final data = await _api.get('/users');
+    final list = (data as List?) ?? const [];
+    return list.map((e) => e as Map<String, dynamic>).toList();
   }
 
   Future<void> createClient({
@@ -139,14 +155,11 @@ class UserService {
     bool active = true,
     String role = 'user',
   }) async {
-    final doc = _db.collection('users').doc();
-
-    await doc.set({
+    await _api.post('/users', body: {
       'name': name,
       'email': email,
       'role': role,
       'active': active,
-      'created_at': FieldValue.serverTimestamp(),
     });
   }
 
@@ -156,28 +169,22 @@ class UserService {
     required String email,
     required bool active,
   }) async {
-    await _db.collection('users').doc(uid).update({
+    await _api.patch('/users/$uid', body: {
       'name': name,
       'email': email,
       'active': active,
     });
   }
 
-  Future<void> setRole({
-    required String uid,
-    required String role,
-  }) async {
-    await _db.collection('users').doc(uid).update({'role': role});
+  Future<void> setRole({required String uid, required String role}) async {
+    await _api.patch('/users/$uid', body: {'role': role});
   }
 
-  Future<void> setActive({
-    required String uid,
-    required bool active,
-  }) async {
-    await _db.collection('users').doc(uid).update({'active': active});
+  Future<void> setActive({required String uid, required bool active}) async {
+    await _api.patch('/users/$uid', body: {'active': active});
   }
 
   Future<void> deleteUser(String uid) async {
-    await _db.collection('users').doc(uid).delete();
+    await _api.delete('/users/$uid');
   }
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:forrageira/models/app_notification.dart';
 import 'package:forrageira/screens/admin/admin_request_analysis_dialog.dart';
@@ -37,6 +36,7 @@ class _NotificationsOverlay extends StatefulWidget {
 
 class _NotificationsOverlayState extends State<_NotificationsOverlay> {
   final _service = AppNotificationService();
+  final _userService = UserService();
   bool _markingAll = false;
 
   String _formatDate(DateTime date) {
@@ -108,13 +108,10 @@ class _NotificationsOverlayState extends State<_NotificationsOverlay> {
 
                 // Body
                 Expanded(
-                  child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(uid)
-                        .snapshots(),
+                  child: StreamBuilder<Map<String, dynamic>?>(
+                    stream: _userService.streamProfile(uid),
                     builder: (context, profileSnap) {
-                      final profile = profileSnap.data?.data();
+                      final profile = profileSnap.data;
                       final isAdmin = UserService.isAdminRole(profile);
 
                       return StreamBuilder<List<AppNotification>>(

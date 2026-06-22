@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'api_client.dart';
 import 'i_image_storage_service.dart';
 
 class ImageUploadException implements Exception {
@@ -21,10 +23,13 @@ class ImageUploadException implements Exception {
 
 class PleskImageStorageService implements IImageStorageService {
   final String uploadUrl;
+  final FirebaseAuth _auth;
 
-  const PleskImageStorageService({
-    this.uploadUrl = 'https://api.devjoelchagas.com.br/index.php',
-  });
+  PleskImageStorageService({
+    String? uploadUrl,
+    FirebaseAuth? auth,
+  })  : uploadUrl = uploadUrl ?? '${ApiClient.defaultBaseUrl}/upload',
+        _auth = auth ?? FirebaseAuth.instance;
 
   @override
   Future<List<String>> uploadImages(
@@ -40,6 +45,12 @@ class PleskImageStorageService implements IImageStorageService {
       final fileName = '${userId}_${DateTime.now().millisecondsSinceEpoch}';
 
       final request = http.MultipartRequest('POST', Uri.parse(uploadUrl));
+
+      // Autenticacao: o endpoint /upload exige o ID token do Firebase.
+      final token = await _idToken();
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
 
       // Campos enviados ao PHP
       request.fields['title']       = fileName;
@@ -106,6 +117,16 @@ class PleskImageStorageService implements IImageStorageService {
     }
 
     return urls;
+  }
+
+  Future<String?> _idToken() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    try {
+      return await user.getIdToken();
+    } catch (_) {
+      return null;
+    }
   }
 
   String? _extractMessage(String body) {

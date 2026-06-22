@@ -1,13 +1,14 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'api_client.dart';
+
 class AuthService extends ChangeNotifier {
   static const String _lastKnownSessionKey = 'last_known_authenticated_user';
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final _firestore = FirebaseFirestore.instance;
+  final ApiClient _api = ApiClient();
 
   User? _currentUser;
   bool isLoading = true;
@@ -43,8 +44,23 @@ class AuthService extends ChangeNotifier {
     final uid = currentUser?.uid;
     if (uid == null) return null;
 
-    final doc = await _firestore.collection('users').doc(uid).get();
-    return doc.data()?['name'];
+    try {
+      final data = await _api.get('/users/me');
+      if (data is Map<String, dynamic>) return data['name'] as String?;
+    } catch (_) {}
+    return null;
+  }
+
+  /// Garante a linha do usuario no banco (FK das analises). Idempotente.
+  Future<void> _ensureSynced(User user) async {
+    try {
+      await _api.post('/auth/sync', body: {
+        'name': user.displayName ?? '',
+        'email': user.email ?? '',
+      });
+    } catch (e) {
+      debugPrint('Falha ao sincronizar usuario: $e');
+    }
   }
 
   Future<User?> login(String email, String senha) async {
@@ -52,6 +68,7 @@ class AuthService extends ChangeNotifier {
       email: email,
       password: senha,
     );
+    if (cred.user != null) await _ensureSynced(cred.user!);
     return cred.user;
   }
 
@@ -66,6 +83,7 @@ class AuthService extends ChangeNotifier {
     );
 
     final cred = await _auth.signInWithCredential(credential);
+    if (cred.user != null) await _ensureSynced(cred.user!);
     return cred.user;
   }
 
@@ -136,19 +154,8 @@ class AuthService extends ChangeNotifier {
       );
     }
 
-    final existing = await _firestore
-        .collection('users')
-        .where('email', isEqualTo: normalizedNewEmail)
-        .limit(1)
-        .get();
-
-    if (existing.docs.isNotEmpty && existing.docs.first.id != user.uid) {
-      throw FirebaseAuthException(
-        code: 'email-already-in-use',
-        message: 'Já existe uma conta cadastrada com esse e-mail.',
-      );
-    }
-
+    // A unicidade do e-mail e garantida pelo Firebase Auth no
+    // verifyBeforeUpdateEmail abaixo (lanca 'email-already-in-use').
     final credential = EmailAuthProvider.credential(
       email: currentEmail,
       password: currentPassword,
@@ -170,19 +177,14 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<bool> canSendAdminResetPassword(String email) async {
-    final result = await _firestore
-        .collection('users')
-        .where('email', isEqualTo: email.trim().toLowerCase())
-        .limit(1)
-        .get();
-
-    if (result.docs.isEmpty) return false;
-
-    final data = result.docs.first.data();
-    final role = (data['role'] ?? '').toString().toLowerCase();
-    final active = data['active'] == true;
-
-    return role == 'admin' && active;
+    try {
+      final data = await _api.get('/auth/admin-eligible', query: {
+        'email': email.trim().toLowerCase(),
+      });
+      return data is Map<String, dynamic> && data['eligible'] == true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> sendPasswordResetForWeb(String email) async {
@@ -217,9 +219,7 @@ class AuthService extends ChangeNotifier {
     final authEmail = user.email?.trim().toLowerCase();
     if (authEmail == null || authEmail.isEmpty) return;
 
-    await _firestore.collection('users').doc(user.uid).update({
-      'email': authEmail,
-    });
+    await _api.patch('/users/${user.uid}', body: {'email': authEmail});
 
     await user.reload();
     _currentUser = _auth.currentUser;
@@ -232,7 +232,7 @@ class AuthService extends ChangeNotifier {
     final uid = _currentUser!.uid;
 
     await _currentUser!.updateDisplayName(username);
-    await _firestore.collection('users').doc(uid).update({'name': username});
+    await _api.patch('/users/$uid', body: {'name': username});
 
     await _currentUser!.reload();
     _currentUser = _auth.currentUser;

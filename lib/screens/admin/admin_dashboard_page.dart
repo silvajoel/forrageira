@@ -1,13 +1,15 @@
 import 'dart:math' as math;
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/analysis_request.dart';
+import '../../services/i_forage_service.dart';
+import '../../services/user_service.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   final ValueChanged<String>? onOpenRequests;
@@ -21,14 +23,10 @@ class AdminDashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final analysisStream = FirebaseFirestore.instance
-        .collection('analysis_requests')
-        .snapshots();
+    final analysisStream = context.read<IForageService>().watchAllRequests();
+    final usersStream = UserService().streamUsers();
 
-    final usersStream =
-    FirebaseFirestore.instance.collection('users').snapshots();
-
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<List<AnalysisRequest>>(
       stream: analysisStream,
       builder: (context, analysisSnapshot) {
         if (analysisSnapshot.hasError) {
@@ -42,12 +40,9 @@ class AdminDashboardPage extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final analyses = analysisSnapshot.data?.docs
-            .map((doc) => AnalysisRequestFirestore.fromFirestore(doc))
-            .toList() ??
-            <AnalysisRequest>[];
+        final analyses = analysisSnapshot.data ?? <AnalysisRequest>[];
 
-        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        return StreamBuilder<List<Map<String, dynamic>>>(
           stream: usersStream,
           builder: (context, usersSnapshot) {
             if (usersSnapshot.hasError) {
@@ -61,7 +56,7 @@ class AdminDashboardPage extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final users = usersSnapshot.data?.docs ?? [];
+            final users = usersSnapshot.data ?? <Map<String, dynamic>>[];
             final vm = _DashboardViewModel.fromData(
               analyses: analyses,
               users: users,
@@ -243,7 +238,7 @@ class _DashboardViewModel {
 
   factory _DashboardViewModel.fromData({
     required List<AnalysisRequest> analyses,
-    required List<QueryDocumentSnapshot<Map<String, dynamic>>> users,
+    required List<Map<String, dynamic>> users,
   }) {
     final completed = analyses.where(_isCompleted).toList()
       ..sort(
@@ -256,11 +251,11 @@ class _DashboardViewModel {
     final pending = analyses.where((item) => !_isCompleted(item)).toList()
       ..sort((a, b) => _sortDateDesc(a.createdAt, b.createdAt));
 
-    final activeUsers = users.where((doc) => _toBool(doc.data()['active'])).toList();
+    final activeUsers = users.where((user) => _toBool(user['active'])).toList();
 
     final activeUsersByState = <String, int>{};
     for (final user in activeUsers) {
-      final state = _extractState(user.data());
+      final state = _extractState(user);
       activeUsersByState[state] = (activeUsersByState[state] ?? 0) + 1;
     }
 

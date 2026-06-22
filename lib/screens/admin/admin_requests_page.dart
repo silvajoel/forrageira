@@ -1,6 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
+import '../../models/analysis_request.dart';
+import '../../services/i_forage_service.dart';
+import '../../services/user_service.dart';
 import 'admin_request_analysis_dialog.dart';
 
 class AdminRequestsPage extends StatefulWidget {
@@ -18,7 +22,7 @@ class AdminRequestsPage extends StatefulWidget {
 }
 
 class _AdminRequestsPageState extends State<AdminRequestsPage> {
-  final _firestore = FirebaseFirestore.instance;
+  final _userService = UserService();
   final TextEditingController _searchCtrl = TextEditingController();
   final Map<String, String> _userNameCache = {};
 
@@ -62,17 +66,6 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
     }
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _requestsStream() {
-    return _firestore
-        .collection('analysis_requests')
-        .orderBy('created_at', descending: true)
-        .snapshots();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _usersStream() {
-    return _firestore.collection('users').snapshots();
-  }
-
   String _normalizeStatus(String raw) {
     final value = raw.trim().toLowerCase();
 
@@ -112,18 +105,13 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
     }
   }
 
-  DateTime _createdAtOf(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-    final createdAt = doc.data()['created_at'];
-    if (createdAt is Timestamp) return createdAt.toDate();
-    return DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _createdAtOf(AnalysisRequest r) {
+    return r.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
   }
 
-  String _fmtDate(dynamic value) {
-    if (value is Timestamp) {
-      final d = value.toDate();
-      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-    }
-    return '-';
+  String _fmtDate(DateTime? value) {
+    if (value == null) return '-';
+    return DateFormat('dd/MM/yyyy').format(value);
   }
 
   Future<void> _openRequest(String requestId) async {
@@ -169,19 +157,20 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
         const SizedBox(height: 12),
         _card(
           title: 'Lista de solicitações',
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: _usersStream(),
+          child: StreamBuilder<List<Map<String, dynamic>>>(
+            stream: _userService.streamUsers(),
             builder: (context, usersSnapshot) {
-              final userDocs = usersSnapshot.data?.docs ?? [];
+              final users = usersSnapshot.data ?? const [];
 
               _userNameCache.clear();
-              for (final doc in userDocs) {
-                final data = doc.data();
-                _userNameCache[doc.id] = (data['name'] ?? '').toString();
+              for (final u in users) {
+                final id = (u['id'] ?? '').toString();
+                if (id.isEmpty) continue;
+                _userNameCache[id] = (u['name'] ?? '').toString();
               }
 
-              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: _requestsStream(),
+              return StreamBuilder<List<AnalysisRequest>>(
+                stream: context.read<IForageService>().watchAllRequests(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return Padding(
@@ -199,28 +188,24 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                     );
                   }
 
-                  final allDocs = snapshot.data?.docs ?? [];
+                  final all = snapshot.data ?? const <AnalysisRequest>[];
                   final q = _searchCtrl.text.trim().toLowerCase();
 
-                  final filteredDocs = allDocs.where((doc) {
-                    final data = doc.data();
-                    final id = doc.id.toLowerCase();
-                    final name = (data['name'] ?? '').toString().toLowerCase();
-                    final notes =
-                    (data['notes'] ?? '').toString().toLowerCase();
-                    final userId =
-                    (data['user_id'] ?? '').toString().toLowerCase();
+                  final filtered = all.where((r) {
+                    final id = r.id.toLowerCase();
+                    final name = r.name.toLowerCase();
+                    final notes = r.notes.toLowerCase();
+                    final userId = r.userId.toLowerCase();
                     final userName =
-                    (_userNameCache[data['user_id']] ?? '').toLowerCase();
-                    final status = _normalizeStatus(
-                      (data['status'] ?? '').toString(),
-                    );
+                        (_userNameCache[r.userId] ?? '').toLowerCase();
+                    final status = _normalizeStatus(r.status);
 
                     final visible =
                         status == 'pending' || status == 'completed';
                     if (!visible) return false;
 
-                    final matchStatus = _statusFilter == 'todos' || status == _statusFilter;
+                    final matchStatus =
+                        _statusFilter == 'todos' || status == _statusFilter;
                     if (!matchStatus) return false;
                     if (q.isEmpty) return true;
 
@@ -231,16 +216,13 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                         userName.contains(q);
                   }).toList()
                     ..sort((a, b) {
-                      final statusCompare = _statusPriority(
-                        (a.data()['status'] ?? '').toString(),
-                      ).compareTo(
-                        _statusPriority((b.data()['status'] ?? '').toString()),
-                      );
+                      final statusCompare = _statusPriority(a.status)
+                          .compareTo(_statusPriority(b.status));
                       if (statusCompare != 0) return statusCompare;
                       return _createdAtOf(b).compareTo(_createdAtOf(a));
                     });
 
-                  if (filteredDocs.isEmpty) {
+                  if (filtered.isEmpty) {
                     return Padding(
                       padding: const EdgeInsets.all(20),
                       child: Text(
@@ -258,15 +240,14 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                         DataColumn(label: Text('Usuário')),
                         DataColumn(label: Text('Ações')),
                       ],
-                      rows: filteredDocs.map((doc) {
-                        final data = doc.data();
-                        final rawStatus = (data['status'] ?? '').toString();
-                        final userId = (data['user_id'] ?? '').toString();
+                      rows: filtered.map((r) {
+                        final rawStatus = r.status;
+                        final userId = r.userId;
                         final userName = _userNameCache[userId];
 
                         return DataRow(
                           cells: [
-                            DataCell(Text(_fmtDate(data['created_at']))),
+                            DataCell(Text(_fmtDate(r.createdAt))),
                             DataCell(
                               Row(
                                 children: [
@@ -292,7 +273,7 @@ class _AdminRequestsPageState extends State<AdminRequestsPage> {
                             ),
                             DataCell(
                               OutlinedButton.icon(
-                                onPressed: () => _openRequest(doc.id),
+                                onPressed: () => _openRequest(r.id),
                                 icon: const Icon(Icons.open_in_new, size: 18),
                                 label: const Text('Abrir'),
                               ),

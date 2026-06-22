@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:forrageira/services/audit_log_service.dart';
+import 'package:forrageira/services/forage_service.dart';
 import 'package:forrageira/services/user_service.dart';
 
 class AdminClientsPage extends StatefulWidget {
@@ -21,9 +21,10 @@ class AdminClientsPage extends StatefulWidget {
 }
 
 class _AdminClientsPageState extends State<AdminClientsPage> {
-  final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
   final _audit = AuditLogService();
+  final _users = UserService();
+  final _forage = ForageService();
 
   final TextEditingController _searchCtrl = TextEditingController();
 
@@ -61,11 +62,8 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
     super.dispose();
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _usersStream() {
-    return _db
-        .collection('users')
-        .orderBy('created_at', descending: true)
-        .snapshots();
+  Stream<List<Map<String, dynamic>>> _usersStream() {
+    return _users.streamUsers();
   }
 
   String _normalizeStatusFilter(String value) {
@@ -83,16 +81,15 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
     }
   }
 
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _applyFilters(
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs, {
+  List<Map<String, dynamic>> _applyFilters(
+      List<Map<String, dynamic>> docs, {
         required String search,
         required String roleFilter,
         required String statusFilter,
       }) {
     final query = search.trim().toLowerCase();
 
-    return docs.where((doc) {
-      final data = doc.data();
+    return docs.where((data) {
       final name = (data['name'] ?? '').toString().toLowerCase();
       final email = (data['email'] ?? '').toString().toLowerCase();
       final role = (data['role'] ?? 'user').toString().toLowerCase();
@@ -157,9 +154,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
     try {
       setState(() => _savingAction = true);
 
-      await _db.collection('users').doc(userId).update({
-        'role': 'admin',
-      });
+      await _users.setRole(uid: userId, role: 'admin');
       await _audit.log(
         action: 'Promoveu usuario para admin',
         targetId: userId,
@@ -227,9 +222,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
     try {
       setState(() => _savingAction = true);
 
-      await _db.collection('users').doc(userId).update({
-        'active': !isActive,
-      });
+      await _users.setActive(uid: userId, active: !isActive);
       await _audit.log(
         action: isActive ? 'Desativou usuario' : 'Ativou usuario',
         targetId: userId,
@@ -397,7 +390,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
     try {
       setState(() => _savingAction = true);
 
-      await _db.collection('users').doc(userId).delete();
+      await _users.deleteUser(userId);
       await _audit.log(
         action: 'Excluiu usuario',
         targetId: userId,
@@ -421,13 +414,8 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
   }
 
   Future<bool> _userHasAnalysisRequests(String userId) async {
-    final analysisSnap = await _db
-        .collection('analysis_requests')
-        .where('user_id', isEqualTo: userId)
-        .limit(1)
-        .get();
-
-    return analysisSnap.docs.isNotEmpty;
+    final list = await _forage.fetchUserForages(userId, limit: 1);
+    return list.isNotEmpty;
   }
 
   Widget _buildHeader() {
@@ -736,7 +724,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
     );
   }
 
-  Widget _buildTable(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+  Widget _buildTable(List<Map<String, dynamic>> docs) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -770,8 +758,8 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
             DataColumn(label: Text('Status')),
             DataColumn(label: Text('Ações')),
           ],
-          rows: docs.map((doc) {
-            final data = doc.data();
+          rows: docs.map((data) {
+            final id = (data['id'] ?? '').toString();
             final name = (data['name'] ?? '-').toString();
             final email = (data['email'] ?? '-').toString();
             final role = (data['role'] ?? 'user').toString();
@@ -788,7 +776,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
                 DataCell(Text(email)),
                 DataCell(_roleChip(role)),
                 DataCell(_statusChip(active)),
-                DataCell(_actionsCell(doc.id, data)),
+                DataCell(_actionsCell(id, data)),
               ],
             );
           }).toList(),
@@ -821,7 +809,7 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
       children: [
         _buildHeader(),
         const SizedBox(height: 18),
-        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        StreamBuilder<List<Map<String, dynamic>>>(
           stream: _usersStream(),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
@@ -835,14 +823,12 @@ class _AdminClientsPageState extends State<AdminClientsPage> {
               );
             }
 
-            final docs = snapshot.data?.docs ?? [];
+            final docs = snapshot.data ?? const <Map<String, dynamic>>[];
             final sortedDocs = [...docs]..sort((a, b) {
-              final aTs = UserService.userCreatedTimestamp(a.data());
-              final bTs = UserService.userCreatedTimestamp(b.data());
-              final aDate =
-                  aTs?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
-              final bDate =
-                  bTs?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+              final aDate = UserService.userCreatedTimestamp(a) ??
+                  DateTime.fromMillisecondsSinceEpoch(0);
+              final bDate = UserService.userCreatedTimestamp(b) ??
+                  DateTime.fromMillisecondsSinceEpoch(0);
               return bDate.compareTo(aDate);
             });
 

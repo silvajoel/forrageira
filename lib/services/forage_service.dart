@@ -1,23 +1,22 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:forrageira/models/analysis_request.dart';
-import 'package:forrageira/services/app_notification_service.dart';
-import 'package:forrageira/services/audit_log_service.dart';
 
+import 'api_client.dart';
 import 'i_forage_service.dart';
+import '../utils/polling.dart';
 
+/// Implementacao do servico de analises sobre a API REST (servidor UFSJ).
+///
+/// As notificacoes e o push sao disparados no backend (PHP); aqui nao ha mais
+/// chamadas diretas a notificacao. O tempo real do Firestore foi substituido
+/// por [pollingStream].
 class ForageService extends ChangeNotifier implements IForageService {
-  final FirebaseFirestore _firestore;
-  final AppNotificationService _notificationService;
-  final AuditLogService _auditLogService;
+  final ApiClient _api;
+  final Duration _pollInterval;
 
-  ForageService({
-    FirebaseFirestore? firestore,
-    AppNotificationService? notificationService,
-    AuditLogService? auditLogService,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _notificationService = notificationService ?? AppNotificationService(),
-        _auditLogService = auditLogService ?? AuditLogService();
+  ForageService({ApiClient? api, Duration? pollInterval})
+      : _api = api ?? ApiClient(),
+        _pollInterval = pollInterval ?? const Duration(seconds: 25);
 
   @override
   Future<void> createAnalysisRequest({
@@ -28,26 +27,14 @@ class ForageService extends ChangeNotifier implements IForageService {
     required double longitude,
     List<String>? imageUrls,
   }) async {
-    final requestRef = await _firestore.collection('analysis_requests').add({
+    await _api.post('/analysis', body: {
       'name': name,
       'notes': notes,
-      'user_id': userId,
       'latitude': latitude,
       'longitude': longitude,
-      'images': imageUrls,
-      'status': 'pending',
-      'created_at': FieldValue.serverTimestamp(),
+      'imageUrls': imageUrls ?? const [],
     });
-
-    try {
-      await _notificationService.notifyAdminsNewAnalysis(
-        analysisId: requestRef.id,
-        forageName: name,
-        requesterId: userId,
-      );
-    } catch (e) {
-      debugPrint('Falha ao notificar admins: $e');
-    }
+    notifyListeners();
   }
 
   @override
@@ -57,101 +44,69 @@ class ForageService extends ChangeNotifier implements IForageService {
     required String careInstructions,
     required String adminNotes,
   }) async {
-    final docRef = _firestore.collection('analysis_requests').doc(requestId);
-    final snapshot = await docRef.get();
-    if (!snapshot.exists) {
-      throw Exception('Analise nao encontrada');
-    }
-
-    final data = snapshot.data() as Map<String, dynamic>;
-    final userId = data['user_id'] as String?;
-    final forageName = (data['name'] as String?) ?? 'forrageira';
-    if (userId == null || userId.isEmpty) {
-      throw Exception('Usuario da analise invalido');
-    }
-
-    await _notificationService.notifyUserAnalysisCompleted(
-      analysisId: requestId,
-      userId: userId,
-      forageName: forageName,
-    );
-
-    await docRef.update({
-      'status': 'completed',
+    await _api.post('/analysis/$requestId/finalize', body: {
       'species_name': speciesName,
       'care_instructions': careInstructions,
       'admin_notes': adminNotes,
-      'reviewed_at': FieldValue.serverTimestamp(),
     });
+    notifyListeners();
+  }
 
-    await _auditLogService.log(
-      action: 'Finalizou analise',
-      targetId: requestId,
-      metadata: {
-        'species_name': speciesName,
-        'user_id': userId,
-      },
+  /// Reabre uma analise para ajustes (admin). O backend notifica o usuario.
+  Future<void> reopenAnalysisRequest({
+    required String requestId,
+    String reason = '',
+  }) async {
+    await _api.post('/analysis/$requestId/reopen', body: {'reason': reason});
+    notifyListeners();
+  }
+
+  @override
+  Stream<List<AnalysisRequest>> watchUserForages(String userId, {int limit = 3}) {
+    return pollingStream(
+      () => _fetchUserForages(userId, limit: limit),
+      interval: _pollInterval,
     );
   }
 
   @override
-  Stream<List<AnalysisRequest>> watchUserForages(
-    String userId, {
-    int limit = 3,
-  }) {
-    return _firestore
-        .collection('analysis_requests')
-        .where('user_id', isEqualTo: userId)
-        .limit(limit)
-        .snapshots()
-        .map((snap) => _sortByCreatedAtDesc(
-              snap.docs.map(AnalysisRequestFirestore.fromFirestore).toList(),
-            ));
-  }
-
-  @override
-  Stream<List<AnalysisRequest>> watchAllUserForages(
-    String userId, {
-    int limit = 20,
-  }) {
-    return _firestore
-        .collection('analysis_requests')
-        .where('user_id', isEqualTo: userId)
-        .limit(limit)
-        .snapshots()
-        .map((snap) => _sortByCreatedAtDesc(
-              snap.docs.map(AnalysisRequestFirestore.fromFirestore).toList(),
-            ));
+  Stream<List<AnalysisRequest>> watchAllUserForages(String userId, {int limit = 20}) {
+    return pollingStream(
+      () => _fetchUserForages(userId, limit: limit),
+      interval: _pollInterval,
+    );
   }
 
   @override
   Stream<List<AnalysisRequest>> watchAllRequests({int limit = 100}) {
-    return _firestore
-        .collection('analysis_requests')
-        .limit(limit)
-        .snapshots()
-        .map((snap) => _sortByCreatedAtDesc(
-              snap.docs.map(AnalysisRequestFirestore.fromFirestore).toList(),
-            ));
+    return pollingStream(
+      () => _fetchRequests(query: {'limit': limit}),
+      interval: _pollInterval,
+    );
   }
 
   @override
   Future<AnalysisRequest> getById(String id) async {
-    final doc = await _firestore.collection('analysis_requests').doc(id).get();
-
-    if (!doc.exists) {
-      throw Exception('Analise nao encontrada');
-    }
-
-    return AnalysisRequestFirestore.fromFirestore(doc);
+    final data = await _api.get('/analysis/$id');
+    return AnalysisRequestApi.fromApi(data as Map<String, dynamic>);
   }
 
-  List<AnalysisRequest> _sortByCreatedAtDesc(List<AnalysisRequest> items) {
-    items.sort((a, b) {
-      final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return bDate.compareTo(aDate);
-    });
-    return items;
+  @override
+  Future<List<AnalysisRequest>> fetchUserForages(String userId, {int limit = 20}) =>
+      _fetchUserForages(userId, limit: limit);
+
+  Future<List<AnalysisRequest>> fetchAllRequests({int limit = 100}) =>
+      _fetchRequests(query: {'limit': limit});
+
+  Future<List<AnalysisRequest>> _fetchUserForages(String userId, {required int limit}) {
+    return _fetchRequests(query: {'user_id': userId, 'limit': limit});
+  }
+
+  Future<List<AnalysisRequest>> _fetchRequests({Map<String, dynamic>? query}) async {
+    final data = await _api.get('/analysis', query: query);
+    final list = (data as List?) ?? const [];
+    return list
+        .map((e) => AnalysisRequestApi.fromApi(e as Map<String, dynamic>))
+        .toList();
   }
 }

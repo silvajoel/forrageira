@@ -3,7 +3,7 @@ description: "A new Flutter project."
 
 publish_to: 'none'
 
-version: 1.0.8+11
+version: 1.0.10+14
 
 environment:
   sdk: ^3.5.0
@@ -22,10 +22,9 @@ dependencies:
   # Google Sign-in
   google_sign_in: ^6.2.1
 
-  # Firebase
+  # Firebase (apenas Auth + Messaging; dados/imagens migraram para a API UFSJ)
   firebase_core: ^4.6.0
   firebase_auth: ^6.3.0
-  cloud_firestore: ^6.2.0
   firebase_storage: ^13.2.0
 
   # Geolocation

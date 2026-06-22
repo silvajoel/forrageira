@@ -1,0 +1,17 @@
+# Roteia /api/* para o front controller, servindo arquivos estaticos (uploads) diretamente.
+RewriteEngine On
+
+# Permite o header Authorization chegar ao PHP (alguns ambientes o removem).
+RewriteCond %{HTTP:Authorization} ^(.+)$
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+
+# Nao reescreve arquivos/pastas existentes (ex.: /uploads/...).
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Tudo o mais cai no front controller.
+RewriteRule ^ index.php [L]
+
+# Impede listagem de diretorios.
+Options -Indexes

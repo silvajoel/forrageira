@@ -62,11 +62,11 @@ class AnalysisScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.grass),
+            Icon(Icons.analytics),
             SizedBox(width: 8),
-            Text('Minhas an\u00e1lises'),
+            Text('Minhas análises'),
           ],
         ),
         actions: [
@@ -84,7 +84,7 @@ class AnalysisScreen extends StatelessWidget {
                   children: [
                     const SizedBox(height: 20),
                     Text(
-                      'Minhas an\u00e1lises',
+                      'Minhas análises',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -92,7 +92,7 @@ class AnalysisScreen extends StatelessWidget {
                     if (offlineItems.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Text(
-                        '${offlineItems.length} an\u00e1lise(s) est\u00e3o aguardando internet.',
+                        '${offlineItems.length} análise(s) estão aguardando internet.',
                         style: theme.textTheme.bodySmall,
                       ),
                     ],

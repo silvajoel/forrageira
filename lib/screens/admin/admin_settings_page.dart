@@ -73,7 +73,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
               child: const Text('Usuário não autenticado. Faça login novamente.'),
             )
           else
-            StreamBuilder(
+            StreamBuilder<Map<String, dynamic>?>(
               stream: _userService.streamProfile(uid),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -89,16 +89,16 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                   );
                 }
 
-                if (!snapshot.hasData || !snapshot.data!.exists) {
+                if (!snapshot.hasData || snapshot.data == null) {
                   return _card(
                     title: 'Minha conta',
-                    child: const Text('Perfil não encontrado no Firestore.'),
+                    child: const Text('Perfil não encontrado.'),
                   );
                 }
 
-                final data = snapshot.data!.data() ?? {};
-                final name = (data['name'] ?? '') as String;
-                final firestoreEmail = (data['email'] ?? '') as String;
+                final data = snapshot.data ?? {};
+                final name = (data['name'] ?? '').toString();
+                final firestoreEmail = (data['email'] ?? '').toString();
                 final authEmail = (_auth.currentUser?.email ?? '').trim().toLowerCase();
 
                 final emailToShow = authEmail.isNotEmpty ? authEmail : firestoreEmail;

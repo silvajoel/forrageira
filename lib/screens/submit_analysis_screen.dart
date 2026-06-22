@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -82,15 +81,13 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
     }
 
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('analysis_requests')
-          .where('user_id', isEqualTo: uid)
-          .limit(1)
-          .get();
+      final list = await context
+          .read<IForageService>()
+          .fetchUserForages(uid, limit: 1);
 
       if (!mounted) return;
       setState(() {
-        _isFirstSubmission = snapshot.docs.isEmpty;
+        _isFirstSubmission = list.isEmpty;
         _isCheckingFirstSubmission = false;
       });
     } catch (_) {
@@ -324,11 +321,11 @@ class _SubmitAnalysisScreenState extends State<SubmitAnalysisScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.grass),
+            Icon(Icons.add_box_outlined),
             SizedBox(width: 8),
-            Text('Nova an\u00e1lise'),
+            Text('Nova análisee'),
           ],
         ),
         actions: [

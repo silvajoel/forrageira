@@ -1,37 +1,36 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'api_client.dart';
+import '../utils/polling.dart';
 
+/// Logs de auditoria administrativa sobre a API REST (servidor UFSJ).
+///
+/// Operacoes de analise (finalizar/reabrir) ja sao auditadas no backend.
+/// Este servico cobre as acoes acionadas pela UI admin (ex.: gestao de
+/// clientes) e a leitura do historico.
 class AuditLogService {
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
+  final ApiClient _api;
 
-  AuditLogService({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  AuditLogService({ApiClient? api}) : _api = api ?? ApiClient();
 
   Future<void> log({
     required String action,
     String? targetId,
     Map<String, dynamic>? metadata,
   }) async {
-    final user = _auth.currentUser;
-    await _firestore.collection('admin_audit_logs').add({
+    await _api.post('/audit-logs', body: {
       'action': action,
       'target_id': targetId,
-      'actor_uid': user?.uid,
-      'actor_email': user?.email,
       'metadata': metadata ?? <String, dynamic>{},
-      'created_at': FieldValue.serverTimestamp(),
     });
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> watchRecent({int limit = 30}) {
-    return _firestore
-        .collection('admin_audit_logs')
-        .orderBy('created_at', descending: true)
-        .limit(limit)
-        .snapshots();
+  /// Historico recente (polling). Cada item e o JSON serializado do log.
+  Stream<List<Map<String, dynamic>>> watchRecent({int limit = 30}) {
+    return pollingStream<List<Map<String, dynamic>>>(() => fetchRecent(limit: limit));
+  }
+
+  Future<List<Map<String, dynamic>>> fetchRecent({int limit = 30}) async {
+    final data = await _api.get('/audit-logs', query: {'limit': limit});
+    final list = (data as List?) ?? const [];
+    return list.map((e) => e as Map<String, dynamic>).toList();
   }
 }

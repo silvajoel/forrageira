@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:forrageira/models/app_notification.dart';
@@ -35,14 +34,14 @@ class AdminTopBar extends StatelessWidget implements PreferredSizeWidget {
         if (user != null) _AdminNotificationBell(uid: user.uid),
 
         if (user != null)
-          StreamBuilder(
+          StreamBuilder<Map<String, dynamic>?>(
             stream: UserService().streamProfile(user.uid),
             builder: (context, snapshot) {
               String nome = 'Admin';
 
-              if (snapshot.hasData && snapshot.data!.exists) {
-                final data = snapshot.data!.data();
-                nome = data?['name'] ?? 'Admin';
+              final data = snapshot.data;
+              if (data != null) {
+                nome = (data['name'] ?? 'Admin').toString();
               }
 
               return Padding(

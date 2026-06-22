@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'api_client.dart';
 import 'notification_service.dart';
 
 import 'fcm_web_notifications_stub.dart'
@@ -9,6 +9,7 @@ import 'fcm_web_notifications_stub.dart'
 
 class FCMService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final ApiClient _api = ApiClient();
   static const String _webVapidKey =
       String.fromEnvironment('FCM_WEB_VAPID_KEY');
   static const Duration _offlineSafeTimeout = Duration(seconds: 6);
@@ -53,9 +54,9 @@ class FCMService {
     final user = FirebaseAuth.instance.currentUser;
 
     if (token != null && user != null) {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'fcmToken': token,
-      }, SetOptions(merge: true)).timeout(_offlineSafeTimeout);
+      await _api
+          .put('/users/me/fcm-token', body: {'fcmToken': token})
+          .timeout(_offlineSafeTimeout);
     }
   }
 
@@ -75,9 +76,9 @@ class FCMService {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
       try {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'fcmToken': token,
-        }, SetOptions(merge: true)).timeout(_offlineSafeTimeout);
+        await _api
+            .put('/users/me/fcm-token', body: {'fcmToken': token})
+            .timeout(_offlineSafeTimeout);
       } catch (e) {
         debugPrint('Refresh do token FCM nao sincronizado agora: $e');
       }

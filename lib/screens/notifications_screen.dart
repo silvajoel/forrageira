@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:forrageira/models/app_notification.dart';
 import 'package:forrageira/services/app_notification_service.dart';
@@ -17,6 +16,7 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final _service = AppNotificationService();
+  final _userService = UserService();
   bool _markingAll = false;
 
   String _formatDate(DateTime date) {
@@ -59,11 +59,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
     }
 
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream:
-          FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: _userService.streamProfile(uid),
       builder: (context, profileSnapshot) {
-        final profile = profileSnapshot.data?.data();
+        final profile = profileSnapshot.data;
         final isAdmin = UserService.isAdminRole(profile);
 
         return StreamBuilder<List<AppNotification>>(

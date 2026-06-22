@@ -32,11 +32,11 @@ class AnalysisDetailScreen extends StatelessWidget {
             mainScreen?.setIndex(0);
           },
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.grass),
+            Icon(Icons.analytics),
             SizedBox(width: 8),
-            Text('Detalhe da an\u00e1lise'),
+            Text('Detalhe da análise'),
           ],
         ),
       ),

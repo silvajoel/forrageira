@@ -64,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ) async {
     await queueService.syncPendingAnalyses(
       forageService: context.read<IForageService>(),
-      imageStorageService: const PleskImageStorageService(),
+      imageStorageService: PleskImageStorageService(),
     );
   }
 
@@ -82,11 +82,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.grass),
+            Icon(Icons.home),
             SizedBox(width: 8),
-            Text('Forrageiras'),
+            Text('Que capim é esse?'),
           ],
         ),
         actions: [
@@ -111,8 +111,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.grass, size: 40),
-                          const SizedBox(width: 12),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.asset(
+                              'assets/images/icon.png',
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,

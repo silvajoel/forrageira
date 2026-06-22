@@ -1,9 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:forrageira/services/app_notification_service.dart';
-import 'package:forrageira/services/audit_log_service.dart';
-import 'package:forrageira/utils/image_url_resolver.dart';
+import 'package:intl/intl.dart';
+import 'package:forrageira/models/analysis_request.dart';
+import 'package:forrageira/services/forage_service.dart';
+import 'package:forrageira/services/species_service.dart';
+import 'package:forrageira/services/user_service.dart';
 import 'package:forrageira/widgets/app_smart_image.dart';
 import 'package:forrageira/widgets/image_viewer_dialog.dart';
 
@@ -22,7 +23,6 @@ class AdminRequestAnalysisDialog extends StatefulWidget {
 
 class _AdminRequestAnalysisDialogState
     extends State<AdminRequestAnalysisDialog> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _careInstructionsCtrl = TextEditingController();
   final TextEditingController _obsManuseioCtrl = TextEditingController();
   final TextEditingController _newSpeciesNameCtrl = TextEditingController();
@@ -30,16 +30,18 @@ class _AdminRequestAnalysisDialogState
   static const String _reopenAllowedAdminEmail = 'suporte9@innomax.com.br';
 
   final _auth = FirebaseAuth.instance;
-  final _audit = AuditLogService();
+  final _forage = ForageService();
+  final _species = SpeciesService();
+  final _users = UserService();
 
   bool _saving = false;
   bool _creatingSpecies = false;
   int _mainImageIndex = 0;
   bool _allImagesFailed = false;
 
-  Map<String, dynamic>? _request;
+  AnalysisRequest? _request;
   String _userName = '-';
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _speciesDocs = [];
+  List<Map<String, dynamic>> _speciesList = [];
   String? _selectedSpeciesId;
   List<String> _resolvedImageUrls = [];
 
@@ -60,87 +62,52 @@ class _AdminRequestAnalysisDialogState
 
   Future<void> _loadAll() async {
     try {
-      final requestDoc = await _firestore
-          .collection('analysis_requests')
-          .doc(widget.requestId)
-          .get();
+      final request = await _forage.getById(widget.requestId);
 
-      if (!requestDoc.exists) {
-        if (!mounted) return;
-        setState(() => _request = null);
-        return;
-      }
+      String userName = request.userId;
+      try {
+        final users = await _users.fetchUsers();
+        final u = users.firstWhere(
+          (e) => e['id'] == request.userId,
+          orElse: () => const {},
+        );
+        final n = (u['name'] ?? '').toString().trim();
+        if (n.isNotEmpty) userName = n;
+      } catch (_) {}
 
-      final request = <String, dynamic>{
-        'id': requestDoc.id,
-        ...requestDoc.data()!,
-      };
-
-      final userId = (request['user_id'] ?? '').toString();
-      String userName = '-';
-      if (userId.isNotEmpty) {
-        final userDoc = await _firestore.collection('users').doc(userId).get();
-        if (userDoc.exists) {
-          final userData = userDoc.data() ?? {};
-          userName = (userData['name'] ?? userId).toString();
-        } else {
-          userName = userId;
-        }
-      }
-
-      final speciesSnap = await _loadSpeciesSnapshot();
+      final species = await _species.fetchSpecies();
 
       if (!mounted) return;
 
       setState(() {
         _request = request;
         _userName = userName;
-        _speciesDocs = speciesSnap.docs;
-        _selectedSpeciesId = _existingSpeciesId(request);
+        _speciesList = species;
 
-        final existingCare =
-        (request['care_instructions'] ?? '').toString().trim();
+        final existingCare = (request.careInstructions ?? '').trim();
         if (existingCare.isNotEmpty) {
           _careInstructionsCtrl.text = existingCare;
         }
-
-        final existingObs = (request['admin_notes'] ?? '').toString().trim();
+        final existingObs = (request.adminNotes ?? '').trim();
         if (existingObs.isNotEmpty) {
           _obsManuseioCtrl.text = existingObs;
         }
 
-        if (_selectedSpeciesId == null &&
-            _speciesDocs.isNotEmpty &&
-            !_isCompleted) {
-          _selectedSpeciesId = _speciesDocs.first.id;
+        // Pre-seleciona pela especie ja registrada (por nome) se finalizada.
+        _selectedSpeciesId = _matchSpeciesIdByName(request.speciesName);
+        if (_selectedSpeciesId == null && species.isNotEmpty && !_isCompleted) {
+          _selectedSpeciesId = (species.first['id'] ?? '').toString();
         }
 
-        final imageListRaw = request['images'] ?? request['imageUrls'] ?? [];
-        _resolvedImageUrls = (imageListRaw as List)
-            .map((e) => e.toString())
-            .where((s) => s.isNotEmpty)
-            .map(ImageUrlResolver.resolve)
-            .toList();
-        if (_resolvedImageUrls.isEmpty) {
-          final singleUrl = (request['image_url'] ??
-              request['photo_url'] ??
-              request['image'] ??
-              '')
-              .toString();
-          if (singleUrl.isNotEmpty) {
-            _resolvedImageUrls.add(ImageUrlResolver.resolve(singleUrl));
-          }
-        }
+        _resolvedImageUrls = List<String>.from(request.imageUrls);
         _allImagesFailed = false;
       });
 
       if (!_isCompleted && _selectedSpeciesId != null) {
-        final speciesDoc = _findSpecies(_selectedSpeciesId!);
-        if (speciesDoc != null && _careInstructionsCtrl.text.trim().isEmpty) {
-          final care = _speciesDescription(speciesDoc.data());
-          if (care.isNotEmpty) {
-            _careInstructionsCtrl.text = care;
-          }
+        final sp = _findSpecies(_selectedSpeciesId!);
+        if (sp != null && _careInstructionsCtrl.text.trim().isEmpty) {
+          final care = _speciesDescription(sp);
+          if (care.isNotEmpty) _careInstructionsCtrl.text = care;
         }
       }
     } catch (e) {
@@ -151,25 +118,19 @@ class _AdminRequestAnalysisDialogState
     }
   }
 
-  Future<QuerySnapshot<Map<String, dynamic>>> _loadSpeciesSnapshot() async {
-    try {
-      return await _firestore.collection('species').orderBy('name').get();
-    } catch (_) {
-      try {
-        return await _firestore.collection('species').orderBy('nome').get();
-      } catch (_) {
-        return await _firestore.collection('species').get();
-      }
-    }
-  }
-
-  String? _existingSpeciesId(Map<String, dynamic> request) {
-    final value = (request['species_id'] ?? '').toString().trim();
-    return value.isEmpty ? null : value;
+  String? _matchSpeciesIdByName(String? speciesName) {
+    final name = (speciesName ?? '').trim().toLowerCase();
+    if (name.isEmpty) return null;
+    final match = _speciesList.firstWhere(
+      (s) => (s['name'] ?? '').toString().trim().toLowerCase() == name,
+      orElse: () => const {},
+    );
+    final id = (match['id'] ?? '').toString();
+    return id.isEmpty ? null : id;
   }
 
   bool get _isCompleted {
-    final status = (_request?['status'] ?? '').toString().trim().toLowerCase();
+    final status = (_request?.status ?? '').trim().toLowerCase();
     return status == 'completed' || status == 'finalizado';
   }
 
@@ -178,54 +139,43 @@ class _AdminRequestAnalysisDialogState
     return _isCompleted && email == _reopenAllowedAdminEmail;
   }
 
-  String _fmtDate(dynamic value) {
-    if (value is Timestamp) {
-      final d = value.toDate();
-      return '${d.day.toString().padLeft(2, '0')}/'
-          '${d.month.toString().padLeft(2, '0')}/${d.year} '
-          '${d.hour.toString().padLeft(2, '0')}:'
-          '${d.minute.toString().padLeft(2, '0')}';
-    }
-    return '-';
+  String _fmtDateTime(DateTime? value) {
+    if (value == null) return '-';
+    return DateFormat('dd/MM/yyyy HH:mm').format(value);
   }
 
   String _speciesName(Map<String, dynamic> data, String fallback) {
-    return (data['name'] ?? data['nome'] ?? fallback).toString();
+    return (data['name'] ?? fallback).toString();
   }
 
   String _speciesDescription(Map<String, dynamic> data) {
-    return (data['description'] ?? data['nome'] ?? data['descricao'] ?? '')
-        .toString()
-        .trim();
+    return (data['description'] ?? '').toString().trim();
   }
 
-  QueryDocumentSnapshot<Map<String, dynamic>>? _findSpecies(String id) {
-    try {
-      return _speciesDocs.where((doc) => doc.id == id).firstOrNull;
-    } catch (_) {
-      return null;
+  Map<String, dynamic>? _findSpecies(String id) {
+    for (final s in _speciesList) {
+      if ((s['id'] ?? '').toString() == id) return s;
     }
+    return null;
   }
 
-  Future<void> _refreshSpecies({String? selectId}) async {
-    final snap = await _loadSpeciesSnapshot();
+  Future<void> _refreshSpecies({String? selectName}) async {
+    final list = await _species.fetchSpecies();
     if (!mounted) return;
     setState(() {
-      _speciesDocs = snap.docs;
-      if (selectId != null) {
-        _selectedSpeciesId = selectId;
+      _speciesList = list;
+      if (selectName != null) {
+        _selectedSpeciesId = _matchSpeciesIdByName(selectName);
       } else if (_selectedSpeciesId != null &&
-          !_speciesDocs.any((doc) => doc.id == _selectedSpeciesId)) {
+          !_speciesList.any((s) => (s['id'] ?? '') == _selectedSpeciesId)) {
         _selectedSpeciesId = null;
       }
     });
-    if (selectId != null && !_isCompleted) {
-      final speciesDoc = _findSpecies(selectId);
-      if (speciesDoc != null && _careInstructionsCtrl.text.trim().isEmpty) {
-        final care = _speciesDescription(speciesDoc.data());
-        if (care.isNotEmpty) {
-          _careInstructionsCtrl.text = care;
-        }
+    if (selectName != null && _selectedSpeciesId != null && !_isCompleted) {
+      final sp = _findSpecies(_selectedSpeciesId!);
+      if (sp != null && _careInstructionsCtrl.text.trim().isEmpty) {
+        final care = _speciesDescription(sp);
+        if (care.isNotEmpty) _careInstructionsCtrl.text = care;
       }
     }
   }
@@ -251,19 +201,10 @@ class _AdminRequestAnalysisDialogState
               }
               setLocalState(() => _creatingSpecies = true);
               try {
-                final uid = _auth.currentUser?.uid;
-                final docRef = await _firestore.collection('species').add({
-                  'name': rawName,
-                  'description': rawNotes,
-                  'active': true,
-                  'created_at': FieldValue.serverTimestamp(),
-                  'created_by': uid,
-                  'updated_at': FieldValue.serverTimestamp(),
-                  'updated_by': uid,
-                });
+                await _species.create(name: rawName, description: rawNotes);
                 if (!mounted) return;
                 Navigator.of(this.context).pop();
-                await _refreshSpecies(selectId: docRef.id);
+                await _refreshSpecies(selectName: rawName);
                 if (!mounted) return;
                 ScaffoldMessenger.of(this.context).showSnackBar(
                   const SnackBar(
@@ -390,33 +331,20 @@ class _AdminRequestAnalysisDialogState
     try {
       final careInstructions = _careInstructionsCtrl.text.trim();
       final obsManuseio = _obsManuseioCtrl.text.trim();
-      String forageName = _request?['name'] ?? '';
       String speciesLabel = '';
-      final speciesDoc = _findSpecies(speciesId);
-      if (speciesDoc != null) {
-        speciesLabel = _speciesName(speciesDoc.data(), 'Espécie');
+      final sp = _findSpecies(speciesId);
+      if (sp != null) {
+        speciesLabel = _speciesName(sp, 'Espécie');
       }
-      final userId = (_request?['user_id'] ?? '').toString();
-      await _firestore
-          .collection('analysis_requests')
-          .doc(widget.requestId)
-          .update({
-        'status': 'completed',
-        'species_id': speciesId,
-        'care_instructions': careInstructions.isEmpty ? '' : careInstructions,
-        'admin_notes': obsManuseio.isEmpty ? '' : obsManuseio,
-        'species_name': speciesLabel,
-        'completed_at': FieldValue.serverTimestamp(),
-      });
-      if (userId.isNotEmpty && forageName.isNotEmpty) {
-        try {
-          await AppNotificationService().notifyUserAnalysisCompleted(
-            analysisId: widget.requestId,
-            userId: userId,
-            forageName: forageName,
-          );
-        } catch (_) {}
-      }
+
+      // O backend grava o resultado, notifica o usuario e audita.
+      await _forage.finalizeAnalysisRequest(
+        requestId: widget.requestId,
+        speciesName: speciesLabel,
+        careInstructions: careInstructions,
+        adminNotes: obsManuseio,
+      );
+
       if (!mounted) return;
       Navigator.of(context).pop(true);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -505,39 +433,11 @@ class _AdminRequestAnalysisDialogState
 
     setState(() => _saving = true);
     try {
-      final userId = (_request?['user_id'] ?? '').toString();
-      final forageName = (_request?['name'] ?? '').toString();
-      final currentUser = _auth.currentUser;
-
-      await _firestore.collection('analysis_requests').doc(widget.requestId).update({
-        'status': 'pending',
-        'reopen_reason': reason,
-        'reopened_at': FieldValue.serverTimestamp(),
-        'reopened_by_uid': currentUser?.uid,
-        'reopened_by_email': currentUser?.email,
-      });
-
-      await _audit.log(
-        action: 'analysis_reopened',
-        targetId: widget.requestId,
-        metadata: {
-          'reason': reason,
-          'user_id': userId,
-          'forage_name': forageName,
-          'reopened_by_email': currentUser?.email,
-        },
+      // O backend reabre, notifica o usuario e audita.
+      await _forage.reopenAnalysisRequest(
+        requestId: widget.requestId,
+        reason: reason,
       );
-
-      if (userId.isNotEmpty && forageName.isNotEmpty) {
-        try {
-          await AppNotificationService().notifyUserAnalysisReopened(
-            analysisId: widget.requestId,
-            userId: userId,
-            forageName: forageName,
-            reason: reason,
-          );
-        } catch (_) {}
-      }
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -677,15 +577,15 @@ class _AdminRequestAnalysisDialogState
                                 runSpacing: 12,
                                 spacing: 24,
                                 children: [
-                                  _infoItem(
-                                      'Nome', (req['name'] ?? '-').toString()),
+                                  _infoItem('Nome',
+                                      req.name.isEmpty ? '-' : req.name),
                                   _infoItem('Usuário', _userName),
                                   _infoItem(
-                                      'Data', _fmtDate(req['created_at'])),
-                                  _infoItem('Latitude',
-                                      (req['latitude'] ?? '-').toString()),
-                                  _infoItem('Longitude',
-                                      (req['longitude'] ?? '-').toString()),
+                                      'Data', _fmtDateTime(req.createdAt)),
+                                  _infoItem(
+                                      'Latitude', req.latitude.toString()),
+                                  _infoItem(
+                                      'Longitude', req.longitude.toString()),
                                 ],
                               ),
                               const SizedBox(height: 16),
@@ -695,7 +595,7 @@ class _AdminRequestAnalysisDialogState
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                (req['notes'] ?? '-').toString(),
+                                req.notes.isEmpty ? '-' : req.notes,
                                 style: const TextStyle(color: Colors.black54),
                               ),
                             ],
@@ -710,7 +610,7 @@ class _AdminRequestAnalysisDialogState
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Expanded(
-                                    child: _speciesDocs.isEmpty
+                                    child: _speciesList.isEmpty
                                         ? const TextField(
                                       readOnly: true,
                                       decoration: InputDecoration(
@@ -723,18 +623,19 @@ class _AdminRequestAnalysisDialogState
                                         : DropdownButtonFormField<String>(
                                       initialValue:
                                       _selectedSpeciesId != null &&
-                                          _speciesDocs.any((d) =>
-                                          d.id ==
+                                          _speciesList.any((s) =>
+                                          (s['id'] ?? '') ==
                                               _selectedSpeciesId)
                                           ? _selectedSpeciesId
                                           : null,
                                       isExpanded: true,
-                                      items: _speciesDocs.map((doc) {
-                                        final data = doc.data();
+                                      items: _speciesList.map((s) {
+                                        final id =
+                                        (s['id'] ?? '').toString();
                                         return DropdownMenuItem<String>(
-                                          value: doc.id,
+                                          value: id,
                                           child: Text(
-                                              _speciesName(data, doc.id)),
+                                              _speciesName(s, id)),
                                         );
                                       }).toList(),
                                       onChanged: (_saving || _isCompleted)
@@ -744,12 +645,12 @@ class _AdminRequestAnalysisDialogState
                                         setState(() =>
                                         _selectedSpeciesId =
                                             value);
-                                        final sDoc =
+                                        final sp =
                                         _findSpecies(value);
-                                        if (sDoc != null) {
+                                        if (sp != null) {
                                           final care =
                                           _speciesDescription(
-                                              sDoc.data());
+                                              sp);
                                           if (care.isNotEmpty) {
                                             _careInstructionsCtrl
                                                 .text = care;

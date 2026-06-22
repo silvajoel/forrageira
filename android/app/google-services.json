@@ -30,6 +30,14 @@
           }
         },
         {
+          "client_id": "1055602958265-upgh5ka4bdv9dvmjc55c5bv9otnegj6f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "br.edu.ufsj.forrageira",
+            "certificate_hash": "f999a7b44fb0d9e66d1d2a8c22a7900681b4ab52"
+          }
+        },
+        {
           "client_id": "1055602958265-s5u4icc8fikm1ke16prlgluvg119ndpg.apps.googleusercontent.com",
           "client_type": 3
         }

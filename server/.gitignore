@@ -1,0 +1,5 @@
+# Segredos e artefatos do servidor - nunca versionar
+config.local.php
+service-account*.json
+public/uploads/
+*.log

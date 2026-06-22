@@ -1,6 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+import '../../services/species_service.dart';
 
 class AdminSpeciesPage extends StatefulWidget {
   const AdminSpeciesPage({super.key});
@@ -10,46 +11,13 @@ class AdminSpeciesPage extends StatefulWidget {
 }
 
 class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
-  final _firestore = FirebaseFirestore.instance;
-  final _auth = FirebaseAuth.instance;
+  final _species = SpeciesService();
 
   bool _showOnlyActive = true;
   bool _saving = false;
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _speciesStream() {
-    return _firestore.collection('species').orderBy('name').snapshots();
-  }
-
-  Future<Map<String, dynamic>?> _getCurrentAdminProfile() async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return null;
-
-    final doc = await _firestore.collection('users').doc(uid).get();
-    return doc.data();
-  }
-
-  Future<void> _writeLog({
-    required String action,
-    required String type,
-    required String typeId,
-    required String details,
-  }) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-
-    final profile = await _getCurrentAdminProfile();
-    final adminName = (profile?['name'] ?? 'Admin').toString();
-
-    await _firestore.collection('logs').add({
-      'action': action,
-      'admin_id': uid,
-      'admin_name': adminName,
-      'created_at': FieldValue.serverTimestamp(),
-      'details': details,
-      'table': 'species',
-      'type': type,
-      'type_id': typeId,
-    });
+  Stream<List<Map<String, dynamic>>> _speciesStream() {
+    return _species.watchSpecies();
   }
 
   Future<void> _openSpeciesDialog({
@@ -78,38 +46,13 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
             setModalState(() => _saving = true);
 
             try {
-              final uid = _auth.currentUser?.uid ?? '';
-
               if (docId == null) {
-                final docRef = await _firestore.collection('species').add({
-                  'name': name,
-                  'description': description,
-                  'active': true,
-                  'created_at': FieldValue.serverTimestamp(),
-                  'created_by': uid,
-                  'updated_at': FieldValue.serverTimestamp(),
-                  'updated_by': uid,
-                });
-
-                await _writeLog(
-                  action: 'Espécie criada',
-                  type: 'create',
-                  typeId: docRef.id,
-                  details: 'Espécie "$name" cadastrada.',
-                );
+                await _species.create(name: name, description: description);
               } else {
-                await _firestore.collection('species').doc(docId).update({
-                  'name': name,
-                  'description': description,
-                  'updated_at': FieldValue.serverTimestamp(),
-                  'updated_by': uid,
-                });
-
-                await _writeLog(
-                  action: 'Espécie atualizada',
-                  type: 'update',
-                  typeId: docId,
-                  details: 'Espécie "$name" atualizada.',
+                await _species.update(
+                  id: docId,
+                  name: name,
+                  description: description,
                 );
               }
 
@@ -197,21 +140,8 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
     required String name,
     required bool nextActive,
   }) async {
-    final uid = _auth.currentUser?.uid ?? '';
-
     try {
-      await _firestore.collection('species').doc(docId).update({
-        'active': nextActive,
-        'updated_at': FieldValue.serverTimestamp(),
-        'updated_by': uid,
-      });
-
-      await _writeLog(
-        action: nextActive ? 'Espécie reativada' : 'Espécie desativada',
-        type: 'update',
-        typeId: docId,
-        details: 'Espécie "$name" ficou ${nextActive ? 'ativa' : 'inativa'}.',
-      );
+      await _species.setActive(id: docId, active: nextActive);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -274,10 +204,9 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
   }
 
   String _fmtDate(dynamic value) {
-    if (value is Timestamp) {
-      final d = value.toDate();
-      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} '
-          '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    if (value is String && value.isNotEmpty) {
+      final d = DateTime.tryParse(value)?.toLocal();
+      if (d != null) return DateFormat('dd/MM/yyyy HH:mm').format(d);
     }
     return '-';
   }
@@ -340,7 +269,7 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
         const SizedBox(height: 12),
         _card(
           title: 'Espécies cadastradas',
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          child: StreamBuilder<List<Map<String, dynamic>>>(
             stream: _speciesStream(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
@@ -357,12 +286,10 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
                 );
               }
 
-              final allDocs = snapshot.data?.docs ?? [];
+              final all = snapshot.data ?? const <Map<String, dynamic>>[];
               final docs = _showOnlyActive
-                  ? allDocs
-                  .where((doc) => doc.data()['active'] == true)
-                  .toList()
-                  : allDocs;
+                  ? all.where((s) => s['active'] == true).toList()
+                  : all;
 
               if (docs.isEmpty) {
                 return const Padding(
@@ -380,8 +307,8 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
                     DataColumn(label: Text('Atualizado em')),
                     DataColumn(label: Text('Ações')),
                   ],
-                  rows: docs.map((doc) {
-                    final data = doc.data();
+                  rows: docs.map((data) {
+                    final id = (data['id'] ?? '').toString();
                     final name = (data['name'] ?? '').toString();
                     final description = (data['description'] ?? '').toString();
                     final active = data['active'] == true;
@@ -397,7 +324,7 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
                             children: [
                               OutlinedButton.icon(
                                 onPressed: () => _openSpeciesDialog(
-                                  docId: doc.id,
+                                  docId: id,
                                   initialName: name,
                                   initialDescription: description,
                                 ),
@@ -407,7 +334,7 @@ class _AdminSpeciesPageState extends State<AdminSpeciesPage> {
                               const SizedBox(width: 8),
                               TextButton(
                                 onPressed: () => _confirmDeactivateOrReactivate(
-                                  docId: doc.id,
+                                  docId: id,
                                   name: name,
                                   isActive: active,
                                 ),

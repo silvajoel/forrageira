@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:forrageira/models/analysis_request.dart';
 import 'package:forrageira/services/audit_log_service.dart';
 import 'package:forrageira/services/i_forage_service.dart';
+import 'package:forrageira/services/user_service.dart';
 import 'package:provider/provider.dart';
 
 class AdminHistoryPage extends StatefulWidget {
@@ -14,34 +14,35 @@ class AdminHistoryPage extends StatefulWidget {
 
 class _AdminHistoryPageState extends State<AdminHistoryPage> {
   final _audit = AuditLogService();
-  final _firestore = FirebaseFirestore.instance;
+  final _userService = UserService();
 
   final Map<String, String> _userCache = {};
+  Future<void>? _usersLoad;
 
   // =========================
   // 👤 BUSCAR NOME USUÁRIO
   // =========================
   Future<String> _getUserName(String uid) async {
     if (uid.isEmpty) return 'Usuário';
+    if (_userCache.containsKey(uid)) return _userCache[uid]!;
 
-    if (_userCache.containsKey(uid)) {
-      return _userCache[uid]!;
-    }
-
+    // Carrega todos os usuarios uma vez e preenche o cache (id -> nome).
+    _usersLoad ??= _loadUsers();
     try {
-      final doc = await _firestore.collection('users').doc(uid).get();
-      final data = doc.data();
-
-      final name = (data?['name'] ??
-          data?['display_name'] ??
-          data?['email'] ??
-          'Usuário')
-          .toString();
-
-      _userCache[uid] = name;
-      return name;
+      await _usersLoad;
     } catch (_) {
       return 'Usuário';
+    }
+    return _userCache[uid] ?? 'Usuário';
+  }
+
+  Future<void> _loadUsers() async {
+    final users = await _userService.fetchUsers();
+    for (final u in users) {
+      final id = (u['id'] ?? '').toString();
+      if (id.isEmpty) continue;
+      _userCache[id] =
+          (u['name'] ?? u['email'] ?? 'Usuário').toString();
     }
   }
 
@@ -119,7 +120,7 @@ class _AdminHistoryPageState extends State<AdminHistoryPage> {
               _card(
                 title: 'Log do Admin',
                 icon: Icons.event_note,
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                child: StreamBuilder<List<Map<String, dynamic>>>(
                   stream: _audit.watchRecent(),
                   builder: (context, logSnapshot) {
                     if (logSnapshot.connectionState ==
@@ -128,18 +129,18 @@ class _AdminHistoryPageState extends State<AdminHistoryPage> {
                           child: CircularProgressIndicator());
                     }
 
-                    final logs = logSnapshot.data?.docs ?? [];
+                    final logs = logSnapshot.data ?? [];
 
                     if (logs.isEmpty) {
                       return const Text('Nenhum log encontrado.');
                     }
 
                     return Column(
-                      children: logs.map((doc) {
-                        final data = doc.data();
-
-                        final createdAt =
-                        (data['created_at'] as Timestamp?)?.toDate();
+                      children: logs.map((data) {
+                        final rawDate = data['created_at'];
+                        final createdAt = rawDate is String
+                            ? DateTime.tryParse(rawDate)?.toLocal()
+                            : null;
 
                         final actor =
                         (data['actor_email'] ?? 'admin').toString();

@@ -22,7 +22,7 @@ class MainScreen extends StatefulWidget {
 
 class MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
-  final _imageStorageService = const PleskImageStorageService();
+  final _imageStorageService = PleskImageStorageService();
 
   AnalysisRequest? _selectedAnalysis;
   bool _showNotifications = false;

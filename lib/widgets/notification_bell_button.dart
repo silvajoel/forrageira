@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:forrageira/models/app_notification.dart';
 import 'package:forrageira/services/app_notification_service.dart';
@@ -21,7 +20,8 @@ class NotificationBellButton extends StatefulWidget {
 
 class _NotificationBellButtonState extends State<NotificationBellButton> {
   final _service = AppNotificationService();
-  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _profileSub;
+  final _userService = UserService();
+  StreamSubscription<Map<String, dynamic>?>? _profileSub;
   final List<StreamSubscription<List<AppNotification>>> _notifSubs = [];
 
   int _unread = 0;
@@ -32,20 +32,16 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
   void initState() {
     super.initState();
     _allowToastAfter = DateTime.now().add(const Duration(seconds: 3));
-    _profileSub = FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.userId)
-        .snapshots()
-        .listen(_onProfile);
+    _profileSub =
+        _userService.streamProfile(widget.userId).listen(_onProfile);
   }
 
-  void _onProfile(DocumentSnapshot<Map<String, dynamic>> snap) {
+  void _onProfile(Map<String, dynamic>? profile) {
     for (final subscription in _notifSubs) {
       unawaited(subscription.cancel());
     }
     _notifSubs.clear();
 
-    final profile = snap.data();
     final isAdmin = UserService.isAdminRole(profile);
 
     var userItems = <AppNotification>[];

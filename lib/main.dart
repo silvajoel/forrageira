@@ -113,7 +113,7 @@ class MyApp extends StatelessWidget {
         '/forgotpassword': (context) => const ForgotPasswordScreen(),
         '/submitanalysis': (context) => SubmitAnalysisScreen(
               locationService: LocationService(),
-              imageStorageService: const PleskImageStorageService(),
+              imageStorageService: PleskImageStorageService(),
             ),
         '/profile': (context) => const ProfileScreen(),
         '/admin-login': (context) => const AdminLoginPage(),
