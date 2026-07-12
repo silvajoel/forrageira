@@ -43,6 +43,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-/ios/GoogleService
+/ios/Runner/GoogleService-Info.plist
 /android/app/google-services.json
+
+# iOS signing material (never commit)
+*.p12
+*.mobileprovision
+*.cer
+ios/certs/
 /lib/firebase_options.dart

@@ -59,20 +59,24 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBoCTou8vuKGMprmsn80u2krxwbuOKcj4A',
-    appId: '1:1055602958265:ios:8227886065ff14f43aa068',
+    appId: '1:1055602958265:ios:73bda4a9bb27a6073aa068',
     messagingSenderId: '1055602958265',
     projectId: 'forrageira-963b0',
     storageBucket: 'forrageira-963b0.firebasestorage.app',
-    iosBundleId: 'com.example.forrageira',
+    iosClientId:
+        '1055602958265-08rtsvkv5m2ebvktauj3ciehqpcjc7a9.apps.googleusercontent.com',
+    iosBundleId: 'br.edu.ufsj.forrageira',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyBoCTou8vuKGMprmsn80u2krxwbuOKcj4A',
-    appId: '1:1055602958265:ios:8227886065ff14f43aa068',
+    appId: '1:1055602958265:ios:73bda4a9bb27a6073aa068',
     messagingSenderId: '1055602958265',
     projectId: 'forrageira-963b0',
     storageBucket: 'forrageira-963b0.firebasestorage.app',
-    iosBundleId: 'com.example.forrageira',
+    iosClientId:
+        '1055602958265-08rtsvkv5m2ebvktauj3ciehqpcjc7a9.apps.googleusercontent.com',
+    iosBundleId: 'br.edu.ufsj.forrageira',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

@@ -1,8 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../firebase_options.dart';
 import 'api_client.dart';
 
 class AuthService extends ChangeNotifier {
@@ -73,7 +76,14 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<User?> signInWithGoogle() async {
-    final googleUser = await GoogleSignIn().signIn();
+    final isApplePlatform = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS);
+    final googleSignIn = isApplePlatform
+        ? GoogleSignIn(clientId: DefaultFirebaseOptions.ios.iosClientId)
+        : GoogleSignIn();
+
+    final googleUser = await googleSignIn.signIn();
     if (googleUser == null) return null;
 
     final googleAuth = await googleUser.authentication;

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Usado por: flutter build ipa --export-options-plist=ios/ExportOptions.plist
+  Preencha TEAM_ID e o nome do provisioning profile antes de buildar na MacinCloud.
+  TEAM_ID: Apple Developer > Membership > Team ID (10 caracteres, ex: A1B2C3D4E5)
+  Nome do profile: exatamente como cadastrado em Apple Developer > Profiles
+-->
+<plist version="1.0">
+  <dict>
+    <key>method</key>
+    <string>app-store</string>
+    <key>teamID</key>
+    <string>TEAM_ID</string>
+    <key>signingStyle</key>
+    <string>manual</string>
+    <key>signingCertificate</key>
+    <string>Apple Distribution</string>
+    <key>provisioningProfiles</key>
+    <dict>
+      <key>br.edu.ufsj.forrageira</key>
+      <string>NOME_DO_PROVISIONING_PROFILE</string>
+    </dict>
+    <key>uploadBitcode</key>
+    <false/>
+    <key>uploadSymbols</key>
+    <true/>
+    <key>compileBitcode</key>
+    <false/>
+  </dict>
+</plist>
