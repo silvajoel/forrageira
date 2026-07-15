@@ -50,5 +50,7 @@ app.*.map.json
 *.p12
 *.mobileprovision
 *.cer
+*.key
+*.csr
 ios/certs/
 /lib/firebase_options.dart
