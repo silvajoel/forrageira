@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../firebase_options.dart';
 import 'api_client.dart';
@@ -95,6 +96,31 @@ class AuthService extends ChangeNotifier {
     final cred = await _auth.signInWithCredential(credential);
     if (cred.user != null) await _ensureSynced(cred.user!);
     return cred.user;
+  }
+
+  Future<UserCredential?> signInWithApple() async {
+    try {
+      // 1. Solicita a credencial nativa do iOS
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      // 2. Converte para a credencial do Firebase Auth
+      final oauthProvider = OAuthProvider('apple.com');
+      final AuthCredential credential = oauthProvider.credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      // 3. Autentica no Firebase
+      return await FirebaseAuth.instance.signInWithCredential(credential);
+    } catch (e) {
+      print('Erro no Sign in with Apple: $e');
+      return null;
+    }
   }
 
   Future<User?> register(String email, String senha) async {

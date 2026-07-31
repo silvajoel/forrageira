@@ -21,6 +21,7 @@ import 'package:forrageira/services/notification_service.dart';
 import 'package:forrageira/services/pending_analysis_queue_service.dart';
 import 'package:forrageira/services/plesk_image_storage_service.dart';
 import 'package:forrageira/screens/admin/reset_password_page.dart';
+import 'package:forrageira/screens/admin/admin_support_page.dart';
 
 import 'firebase_options.dart';
 import 'screens/admin/admin_home_page.dart';
@@ -106,7 +107,7 @@ class MyApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       theme: appTheme,
-      home: const AppBootstrapPage(),
+      home: const AppBootstrapPage(),  
       routes: {
         '/home': (context) => MainScreen(key: mainScreenKey),
         '/register': (context) => const RegisterScreen(),
@@ -119,6 +120,7 @@ class MyApp extends StatelessWidget {
         '/admin-login': (context) => const AdminLoginPage(),
         '/reset-password': (context) => const ResetPasswordPage(),
         '/admin': (context) => const AdminHomePage(),
+        '/suporte': (context) => const AdminHomePage(initialMenu: 'suporte'),
       },
     );
   }

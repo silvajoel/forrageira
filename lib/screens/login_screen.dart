@@ -1,5 +1,7 @@
+import 'dart:io'; // Para checar se é iOS
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart'; // Import do pacote Apple
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import '../widgets/google_sign_in_button.dart';
@@ -17,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _auth = AuthService();
   final _userService = UserService();
   bool _googleLoading = false;
+  bool _appleLoading = false;
 
   bool _obscureSenha = true;
   bool loading = false;
@@ -174,6 +177,58 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _loginWithApple() async {
+    setState(() => _appleLoading = true);
+    try {
+      final user = await _auth.signInWithApple();
+      if (user == null) {
+        if (mounted) setState(() => _appleLoading = false);
+        return;
+      }
+
+      final profile = await _userService.getProfileWithRetry(user.user!.uid);
+
+      if (!mounted) return;
+
+      if (profile == null) {
+        await _auth.logout();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Conta Apple não encontrada no sistema. Cadastre-se primeiro."),
+          ),
+        );
+        setState(() => _appleLoading = false);
+        return;
+      }
+
+      if (!UserService.isProfileActive(profile)) {
+        await _auth.logout();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Sua conta está inativa. Procure o administrador.")),
+        );
+        setState(() => _appleLoading = false);
+        return;
+      }
+
+      if (UserService.isAdminRole(profile)) {
+        await _auth.logout();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Essa conta é administrativa. Use o painel web.")),
+        );
+        setState(() => _appleLoading = false);
+        return;
+      }
+
+      Navigator.pushReplacementNamed(context, '/home');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Erro ao entrar com Apple. Tente novamente.")),
+      );
+      setState(() => _appleLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -249,7 +304,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: loading ? null : _login,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
-                      foregroundColor: Colors.white, // cor do texto
+                      foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 45),
                     ),
                     child: loading
@@ -271,10 +326,28 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const Divider(height: 24),
 
+                // 🟢 Botão de Login do Google
                 GoogleSignInButton(
                   loading: _googleLoading,
                   onPressed: _loginWithGoogle,
                 ),
+                // 🟢 Botão de Sign in with Apple (Apenas no iOS)
+                if (Platform.isIOS) ...[
+                  const SizedBox(height: 12),
+                  _appleLoading
+                      ? const SizedBox(
+                          height: 48,
+                          child: Center(
+                            child: CircularProgressIndicator(color: Colors.black54),
+                          ),
+                        )
+                      : SignInWithAppleButton(
+                          text: 'Entrar com a Apple',
+                          height: 48,
+                          borderRadius: const BorderRadius.all(Radius.circular(8)),
+                          onPressed: _loginWithApple,
+                        ),
+                ],
 
                 const SizedBox(height: 4),
 

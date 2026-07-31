@@ -25,6 +25,7 @@ class AdminSidebar extends StatelessWidget {
           _item(Icons.history, 'Histórico de Laudos', 'historico'),
           _item(Icons.groups_outlined, 'Gestão de Usuários', 'clientes'),
           _item(Icons.settings_outlined, 'Configurações', 'config'),
+          _item(Icons.help_outline, 'FAQ / Suporte', 'suporte'),
           const Divider(color: Colors.white24),
           _logout(context),
         ],

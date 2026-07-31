@@ -7,6 +7,7 @@ import 'admin_history_page.dart';
 import 'admin_requests_page.dart';
 import 'admin_settings_page.dart';
 import 'admin_species_page.dart';
+import 'admin_support_page.dart';
 
 class AdminHomePage extends StatefulWidget {
   final String initialMenu;
@@ -59,6 +60,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
       case 'historico':
       case 'clientes':
       case 'config':
+      case 'suporte':
         return value;
       default:
         return 'dashboard';
@@ -93,6 +95,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
             },
           ),
           const AdminSettingsPage(),
+          const AdminSupportPage(),
         ],
       ),
     );
@@ -112,6 +115,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
         return 4;
       case 'config':
         return 5;
+      case 'suporte':
+        return 6;
       default:
         return 0;
     }
