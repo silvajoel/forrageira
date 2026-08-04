@@ -294,7 +294,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             _showSuccess("Nome alterado com sucesso");
                           } catch (e) {
                             setState(() => isLoading = false);
-                            _showError("Erro ao atualizar nome");
+                            _showError("Erro ao atualizar nome: erro $e");
                           }
                         },
                   child: isLoading

@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import '../../services/auth_service.dart';
 import '../../services/user_service.dart';
 
@@ -67,7 +69,8 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         await _auth.logout();
         setState(() {
           loading = false;
-          error = 'Seu usuário foi autenticado, mas não possui cadastro no banco.';
+          error =
+              'Seu usuário foi autenticado, mas não possui cadastro no banco.';
         });
         return;
       }
@@ -102,7 +105,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
       Navigator.of(context).pushNamedAndRemoveUntil(
         '/admin',
-            (route) => false,
+        (route) => false,
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -187,71 +190,72 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                   onPressed: sending
                       ? null
                       : () async {
-                    final email = resetEmailCtrl.text.trim().toLowerCase();
+                          final email = resetEmailCtrl.text.trim().toLowerCase();
 
-                    if (email.isEmpty) {
-                      setLocalState(() {
-                        dialogError = 'Informe o e-mail.';
-                      });
-                      return;
-                    }
+                          if (email.isEmpty) {
+                            setLocalState(() {
+                              dialogError = 'Informe o e-mail.';
+                            });
+                            return;
+                          }
 
-                    setLocalState(() {
-                      sending = true;
-                      dialogError = null;
-                    });
+                          setLocalState(() {
+                            sending = true;
+                            dialogError = null;
+                          });
 
-                    try {
-                      final canReset = await _auth.canSendAdminResetPassword(email);
+                          try {
+                            final canReset = await _auth.canSendAdminResetPassword(email);
 
-                      if (!canReset) {
-                        setLocalState(() {
-                          sending = false;
-                          dialogError = 'Não existe conta administradora ativa com esse e-mail.';
-                        });
-                        return;
-                      }
+                            if (!canReset) {
+                              setLocalState(() {
+                                sending = false;
+                                dialogError =
+                                    'Não existe conta administradora ativa com esse e-mail.';
+                              });
+                              return;
+                            }
 
-                      await _auth.sendPasswordResetForWeb(email);
+                            await _auth.sendPasswordResetForWeb(email);
 
-                      if (!mounted) return;
-                      Navigator.pop(context);
+                            if (!mounted) return;
+                            Navigator.pop(context);
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'O link de recuperação foi enviado para o e-mail informado.',
-                          ),
-                        ),
-                      );
-                    } on FirebaseAuthException catch (e) {
-                      String msg = 'Erro ao enviar link de recuperação.';
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'O link de recuperação foi enviado para o e-mail informado.',
+                                ),
+                              ),
+                            );
+                          } on FirebaseAuthException catch (e) {
+                            String msg = 'Erro ao enviar link de recuperação.';
 
-                      switch (e.code) {
-                        case 'invalid-email':
-                          msg = 'E-mail inválido.';
-                          break;
-                        default:
-                          msg = 'Não foi possível enviar o e-mail.';
-                      }
+                            switch (e.code) {
+                              case 'invalid-email':
+                                msg = 'E-mail inválido.';
+                                break;
+                              default:
+                                msg = 'Não foi possível enviar o e-mail.';
+                            }
 
-                      setLocalState(() {
-                        sending = false;
-                        dialogError = msg;
-                      });
-                    } catch (_) {
-                      setLocalState(() {
-                        sending = false;
-                        dialogError = 'Erro inesperado. Tente novamente.';
-                      });
-                    }
-                  },
+                            setLocalState(() {
+                              sending = false;
+                              dialogError = msg;
+                            });
+                          } catch (_) {
+                            setLocalState(() {
+                              sending = false;
+                              dialogError = 'Erro inesperado. Tente novamente.';
+                            });
+                          }
+                        },
                   child: sending
                       ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Enviar link'),
                 ),
               ],
@@ -262,6 +266,274 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     );
 
     resetEmailCtrl.dispose();
+  }
+
+  // =======================================================
+  // DIÁLOGO DE SUPORTE E FAQ
+  // =======================================================
+  void _showSupportAndFaqDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return DefaultTabController(
+          length: 2,
+          child: AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.help_outline, color: Color(0xFF1F5B3F)),
+                SizedBox(width: 8),
+                Text('Ajuda & Suporte'),
+              ],
+            ),
+            content: SizedBox(
+              width: 500,
+              height: 520,
+              child: Column(
+                children: [
+                  const TabBar(
+                    labelColor: Color(0xFF1F5B3F),
+                    indicatorColor: Color(0xFF1F5B3F),
+                    tabs: [
+                      Tab(icon: Icon(Icons.quiz_outlined), text: "Dúvidas Frequentes"),
+                      Tab(icon: Icon(Icons.support_agent), text: "Solicitar Suporte"),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _buildFaqSection(),
+                        _buildSupportFormSection(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Fechar'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFaqSection() {
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      children: const [
+        ExpansionTile(
+          title: Text("Quem pode ter acesso ao painel administrativo?",
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          children: [
+            Padding(
+              padding: EdgeInsets.all(12.0),
+              child: Text(
+                "O acesso é exclusivo para professores, pesquisadores e administradores autorizados do projeto. Se você é usuário do app, acesse diretamente pelo seu smartphone.",
+                style: TextStyle(fontSize: 13, color: Colors.black87),
+              ),
+            ),
+          ],
+        ),
+        ExpansionTile(
+          title: Text("Esqueci minha senha ou não consigo logar, o que fazer?",
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          children: [
+            Padding(
+              padding: EdgeInsets.all(12.0),
+              child: Text(
+                "Utilize a opção 'Esqueci a senha' na tela inicial. Se a sua conta estiver desativada ou você não receber o e-mail, utilize a aba 'Solicitar Suporte' para falar com a equipe responsável.",
+                style: TextStyle(fontSize: 13, color: Colors.black87),
+              ),
+            ),
+          ],
+        ),
+        ExpansionTile(
+          title: Text("Como cadastrar um novo administrador no sistema?",
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          children: [
+            Padding(
+              padding: EdgeInsets.all(12.0),
+              child: Text(
+                "Novos cadastros de administradores só podem ser realizados por um perfil gestor já autenticado dentro do painel em 'Gerenciamento de Usuários'.",
+                style: TextStyle(fontSize: 13, color: Colors.black87),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSupportFormSection() {
+    final nameCtrl = TextEditingController();
+    final userEmailCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final subjectCtrl = TextEditingController();
+    final descriptionCtrl = TextEditingController();
+
+    bool isSending = false;
+
+    return StatefulBuilder(
+      builder: (context, setSectionState) {
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Preencha os dados abaixo para encaminhar sua solicitação diretamente para o suporte técnico do projeto.",
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nameCtrl,
+                enabled: !isSending,
+                decoration: const InputDecoration(
+                  labelText: "Seu Nome Completo *",
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: userEmailCtrl,
+                enabled: !isSending,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: "Seu E-mail para Contato *",
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: phoneCtrl,
+                enabled: !isSending,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: "Telefone / WhatsApp",
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: subjectCtrl,
+                enabled: !isSending,
+                decoration: const InputDecoration(
+                  labelText: "Assunto / Tópico *",
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: descriptionCtrl,
+                enabled: !isSending,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: "Descreva em detalhes o ocorrido *",
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 42,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1F5B3F),
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: isSending
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.send),
+                  label: Text(isSending ? "Enviando..." : "Enviar mensagem de suporte"),
+                  onPressed: isSending
+                      ? null
+                      : () async {
+                          final name = nameCtrl.text.trim();
+                          final email = userEmailCtrl.text.trim();
+                          final phone = phoneCtrl.text.trim();
+                          final subject = subjectCtrl.text.trim();
+                          final desc = descriptionCtrl.text.trim();
+
+                          if (name.isEmpty || email.isEmpty || subject.isEmpty || desc.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Preencha todos os campos obrigatórios (*)"),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setSectionState(() => isSending = true);
+
+                          try {
+                            final response = await http.post(
+                              Uri.parse('https://capim.ufsj.edu.br/api/support'),
+                              headers: {'Content-Type': 'application/json'},
+                              body: jsonEncode({
+                                'name': name,
+                                'email': email,
+                                'phone': phone,
+                                'subject': subject,
+                                'description': desc,
+                              }),
+                            );
+
+                            if (!context.mounted) return;
+
+                            if (response.statusCode == 200 || response.statusCode == 201) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Chamado de suporte registrado com sucesso!"),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Erro ao registrar chamado. Tente novamente."),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("Erro de conexão: $e"),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          } finally {
+                            if (context.mounted) {
+                              setSectionState(() => isSending = false);
+                            }
+                          }
+                        },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildLoginForm() {
@@ -337,24 +609,46 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                 ),
                 child: loading
                     ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Text('Entrar'),
               ),
             ),
-            const SizedBox(height: 10),
-            InkWell(
-              onTap: loading ? null : _showForgotPasswordDialog,
-              child: const Text(
-                'Esqueci a senha',
-                style: TextStyle(
-                  color: Color(0xFF1565C0),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                InkWell(
+                  onTap: loading ? null : _showForgotPasswordDialog,
+                  child: const Text(
+                    'Esqueci a senha',
+                    style: TextStyle(
+                      color: Color(0xFF1565C0),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
-              ),
+                InkWell(
+                  onTap: _showSupportAndFaqDialog,
+                  child: const Row(
+                    children: [
+                      Icon(Icons.help_outline, size: 15, color: Color(0xFF1F5B3F)),
+                      SizedBox(width: 4),
+                      Text(
+                        'FAQ & Suporte',
+                        style: TextStyle(
+                          color: Color(0xFF1F5B3F),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -413,7 +707,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
                 Navigator.of(context).pushNamedAndRemoveUntil(
                   '/admin',
-                      (route) => false,
+                  (route) => false,
                 );
               });
 
